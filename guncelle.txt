@@ -1,2 +1,2 @@
 Bu dosya değişince site güncellenir (Claude'a "güncelle" denince değiştirilir).
-Son istek: 2026-11-10 20:48 TSİ
+Son istek: 2026-11-10 20:52 TSİ
