@@ -11,15 +11,17 @@ def _num(x):
 
 def market_probs(d):
     """d: mapping with the raw probability columns produced by calibrate.predict_all."""
+    ht = d.get('ht', True) is not False            # leagues without half-time scores: full-time markets only
     m = {
         'MS 1': d['p1'], 'MS X': d['px'], 'MS 2': d['p2'],
         'ÇŞ 1X': d['p1'] + d['px'], 'ÇŞ X2': d['px'] + d['p2'], 'ÇŞ 12': d['p1'] + d['p2'],
         'KG Var': d['btts'], 'KG Yok': 1 - d['btts'],
-        'İY 1': d['h1'], 'İY X': d['hx'], 'İY 2': d['h2'],
-        'İY 0.5 Üst': d['ho0.5'], 'İY 0.5 Alt': 1 - d['ho0.5'],
-        'İY 1.5 Üst': d['ho1.5'], 'İY 1.5 Alt': 1 - d['ho1.5'],
-        'İY 2.5 Üst': d['ho2.5'], 'İY 2.5 Alt': 1 - d['ho2.5'],
     }
+    if ht:
+        m.update({'İY 1': d['h1'], 'İY X': d['hx'], 'İY 2': d['h2'],
+                  'İY 0.5 Üst': d['ho0.5'], 'İY 0.5 Alt': 1 - d['ho0.5'],
+                  'İY 1.5 Üst': d['ho1.5'], 'İY 1.5 Alt': 1 - d['ho1.5'],
+                  'İY 2.5 Üst': d['ho2.5'], 'İY 2.5 Alt': 1 - d['ho2.5']})
     for L in (1.5, 2.5, 3.5, 4.5):
         m[f'{L} Üst'] = d[f'o{L}']; m[f'{L} Alt'] = 1 - d[f'o{L}']
     if _num(d.get('co7.5')):                       # leagues without corner statistics have no corner markets
@@ -28,8 +30,9 @@ def market_probs(d):
         for L in (3.5, 4.5, 5.5):
             if _num(d.get(f'hco{L}')):
                 m[f'İY Korner {L} Üst'] = d[f'hco{L}']; m[f'İY Korner {L} Alt'] = 1 - d[f'hco{L}']
-    for c in CELLS:
-        m[f'İY/MS {c[0]}/{c[1]}'] = d['hf' + c]
+    if ht:
+        for c in CELLS:
+            m[f'İY/MS {c[0]}/{c[1]}'] = d['hf' + c]
     # underdog wins (only defined for the side with the lower win probability)
     if d['p1'] < d['p2']:
         m['Sürpriz MS 1'] = d['p1']
@@ -39,22 +42,26 @@ def market_probs(d):
 
 
 def market_outcomes(hg, ag, hthg, htag, hc, ac, p1=None, p2=None):
-    tg = hg + ag; t1 = hthg + htag; ct = (hc + ac) if (_num(hc) and _num(ac)) else None
-    ht = '1' if hthg > htag else ('X' if hthg == htag else '2')
+    has_ht = _num(hthg) and _num(htag)
+    tg = hg + ag; ct = (hc + ac) if (_num(hc) and _num(ac)) else None
     ft = '1' if hg > ag else ('X' if hg == ag else '2')
     o = {'MS 1': ft == '1', 'MS X': ft == 'X', 'MS 2': ft == '2',
          'ÇŞ 1X': ft != '2', 'ÇŞ X2': ft != '1', 'ÇŞ 12': ft != 'X',
-         'KG Var': hg > 0 and ag > 0, 'KG Yok': not (hg > 0 and ag > 0),
-         'İY 1': ht == '1', 'İY X': ht == 'X', 'İY 2': ht == '2'}
-    for L in (0.5, 1.5, 2.5):
-        o[f'İY {L} Üst'] = t1 > L; o[f'İY {L} Alt'] = t1 < L
+         'KG Var': hg > 0 and ag > 0, 'KG Yok': not (hg > 0 and ag > 0)}
+    if has_ht:
+        t1 = hthg + htag
+        ht = '1' if hthg > htag else ('X' if hthg == htag else '2')
+        o.update({'İY 1': ht == '1', 'İY X': ht == 'X', 'İY 2': ht == '2'})
+        for L in (0.5, 1.5, 2.5):
+            o[f'İY {L} Üst'] = t1 > L; o[f'İY {L} Alt'] = t1 < L
     for L in (1.5, 2.5, 3.5, 4.5):
         o[f'{L} Üst'] = tg > L; o[f'{L} Alt'] = tg < L
     if _num(hc) and _num(ac):
         for L in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5):
             o[f'Korner {L} Üst'] = ct > L; o[f'Korner {L} Alt'] = ct < L
-    for c in CELLS:
-        o[f'İY/MS {c[0]}/{c[1]}'] = (ht + ft) == c
+    if has_ht:
+        for c in CELLS:
+            o[f'İY/MS {c[0]}/{c[1]}'] = (ht + ft) == c
     if p1 is not None:
         if p1 < p2:
             o['Sürpriz MS 1'] = ft == '1'

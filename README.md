@@ -1,11 +1,14 @@
 # Futbol Tahmin Bülteni
 
-22 lig için **istediğinde tek dokunuşla güncellenen** tahmin sitesi:
+38 lig için **istediğinde tek dokunuşla güncellenen** tahmin sitesi:
 **https://batshuayibatsman.github.io/futbol-tahmin/**
 
 Türkiye Süper Lig · İngiltere Premier Lig, Championship, League One, League Two, National League · İskoçya Premiership,
 Championship, League One, League Two · Almanya Bundesliga, 2. Bundesliga · İtalya Serie A, Serie B · İspanya La Liga,
 La Liga 2 · Fransa Ligue 1, Ligue 2 · Hollanda Eredivisie · Belçika Pro League · Portekiz Liga Portugal · Yunanistan Süper Lig.
+
+Yalnızca maç sonu verisi olan 16 lig (ilk yarı, İY/MS ve korner tahmini yok): ABD MLS · Arjantin · Avusturya · Brezilya ·
+Çin · Danimarka · Finlandiya · İrlanda · İsveç · İsviçre · Japonya · Meksika · Norveç · Polonya · Romanya · Rusya.
 
 Zamanlanmış çalıştırma yoktur. Güncelleme yalnızca sen istediğinde çalışır: GitHub veriyi kendisi çeker, modeli yeniden kurar,
 tahminleri hesaplar ve siteyi yayınlar. Hiçbir şey yapıştırman gerekmez.
@@ -30,10 +33,11 @@ tahminleri hesaplar ve siteyi yayınlar. Hiçbir şey yapıştırman gerekmez.
 |---|---|---|
 | football-data.co.uk | Sonuç, devre skoru, korner (modelin verisi) | Kaynak Pazar ve Çarşamba geceleri günceller |
 | football-data.co.uk | Oranlar (Bet365, en iyi, ortalama) ve İskoçya League One / Two fikstürü | Kaynak Salı ve Cuma öğleden sonra ekler |
+| football-data.co.uk (ek ligler) | 16 ligin maç sonu sonuçları ve fikstürü, 1X2 oranları (Pinnacle, Bet365, en iyi, ortalama) | Kaynak düzenli günceller |
 | ESPN (resmî olmayan açık veri) | İki haftalık fikstür, maç durumu, canlı skor, **güncel oranlar** (DraftKings, Bet365) | Her güncellemede; canlı skorlar sayfa açıkken her dakika |
 | The Odds API (isteğe bağlı) | Daha çok sitenin oranları | Güncellemede, maçtan önceki 36 saatte, lig başına en sık 8 saatte bir |
 
-ESPN İskoçya League One ve League Two'yu güncel tutmuyor; bu iki ligin fikstürü football-data oran dosyasından gelir (yaklaşık bir hafta önceden).
+ESPN İskoçya League One / Two, Finlandiya, İrlanda, Polonya, Romanya ve İsviçre'yi güncel tutmuyor; bunların fikstürü football-data'dan gelir (yaklaşık bir hafta önceden).
 National League'in resmî verisinde korner yok; o ligde korner tahmini gösterilmez. Bir güncellemede her siteye sınırlı sayıda istek gider.
 Ziyaretçilerin tarayıcısı kaynaklara istek atmaz (ESPN izin veriyorsa canlı maç sırasında skorlar hariç).
 
@@ -72,6 +76,8 @@ Her maç yalnızca kendinden önce oynanmış maçlarla ve o maçın maç önces
 - Bankolar: model ortalama %80,0 dedi, %81,2 tuttu. Sürprizler: model %17,4 dedi, %17,5 tuttu (olağan sıklık %11,7).
 - Oranları hiç kullanmayan eski yöntemle bankolar %79,8 tutuyordu; maç sonucu log-kaybı 1,020 → 1,000 (Bet365'in kendisi 1,001).
 - Oranlardan türetilen gol beklentisi 22 ligin hepsinde sadece istatistikten daha isabetliydi (`research/v2/blend.py`).
+- Ek 16 lig (yalnızca maç sonu verisi, 2024 sezonu, 3.076 maç): bankolar %80,9 dedi, %80,1 tuttu; sürprizler %33,7 dedi, %33,7 tuttu.
+  Bu liglerde de oranlar 16 ligin hepsinde istatistikten isabetliydi (`research/v2/extra.py`).
 - Hiçbir seçim kuralı bahis oranlarına karşı güvenilir bir kâr göstermedi.
 
 ## Bilinen sınırlar

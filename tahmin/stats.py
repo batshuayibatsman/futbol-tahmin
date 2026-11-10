@@ -48,17 +48,19 @@ def facts_for_team(C, t, name, L, venue):
     if cf == cf and ca == ca and L['cpm'] == L['cpm']:          # leagues without corner statistics have none
         out.append((abs(z(cf, L['cpm'], L['csd'], n)), f'{name}: maç başına {fmt(cf)} korner kullanıyor (lig ort. {fmt(L["cpm"])})', t))
         out.append((abs(z(ca, L['cpm'], L['csd'], n)) * 0.9, f'{name}: rakiplerine maç başına {fmt(ca)} korner veriyor (lig ort. {fmt(L["cpm"])})', t))
-    G = int((R.gf + R.ga).sum()); G1 = int((R.gf1 + R.ga1).sum())
-    if G >= 12:
-        out.append((abs(zb(G1, G, L['s1'])), f'{name} maçlarındaki goller: ilk yarı {G1}, ikinci yarı {G - G1}', t))
-    beh = R[R.gf1 < R.ga1]
-    if len(beh) >= 3:
-        k = int((beh.gf >= beh.ga).sum())
-        out.append((k / len(beh) * 2.2 if k >= 2 else 0, f'{name}: devreyi geride kapattığı {len(beh)} maçta {k} kez puan aldı', t))
-    lead = R[R.gf1 > R.ga1]
-    if len(lead) >= 3:
-        k = int((lead.gf <= lead.ga).sum())
-        out.append((k / len(lead) * 2.2 if k >= 2 else 0, f'{name}: devreyi önde kapattığı {len(lead)} maçta {k} kez kazanamadı', t))
+    has_ht = bool(R.gf1.notna().any()) and L['s1'] > 0       # leagues without half-time scores: no first-half facts
+    if has_ht:
+        G = int((R.gf + R.ga).sum()); G1 = int((R.gf1 + R.ga1).sum())
+        if G >= 12:
+            out.append((abs(zb(G1, G, L['s1'])), f'{name} maçlarındaki goller: ilk yarı {G1}, ikinci yarı {G - G1}', t))
+        beh = R[R.gf1 < R.ga1]
+        if len(beh) >= 3:
+            k = int((beh.gf >= beh.ga).sum())
+            out.append((k / len(beh) * 2.2 if k >= 2 else 0, f'{name}: devreyi geride kapattığı {len(beh)} maçta {k} kez puan aldı', t))
+        lead = R[R.gf1 > R.ga1]
+        if len(lead) >= 3:
+            k = int((lead.gf <= lead.ga).sum())
+            out.append((k / len(lead) * 2.2 if k >= 2 else 0, f'{name}: devreyi önde kapattığı {len(lead)} maçta {k} kez kazanamadı', t))
     V = R[R.ven == venue]
     if len(V) >= 4:
         mu, sd = (L['home_gpm'], L['hsd']) if venue == 'H' else (L['away_gpm'], L['asd'])

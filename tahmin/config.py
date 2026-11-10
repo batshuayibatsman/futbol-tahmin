@@ -4,11 +4,15 @@ CFG=dict(window_days=1460,
          hl_goals=365, kappa_goals=10,
          hl_corners=240, kappa_corners=40,
          new_att_goals=-0.22, new_def_goals=-0.13,     # promoted-club prior (175 promoted team-seasons 2010-2020)
-         new_att_corners=-0.09, new_def_corners=-0.08)
+         new_att_corners=-0.09, new_def_corners=-0.08,
+         s1_default=(0.446, 0.446))                    # first-half goal share, 22 leagues 2021-24 (for leagues without HT scores)
 # leagues served in the page, in display order (all have full-time + half-time scores; all but EC have corners)
-TARGET=['T1','E0','SP1','I1','D1','F1','N1','P1','B1','G1','SC0',
-        'E1','SP2','I2','D2','F2','E2','E3','EC','SC1','SC2','SC3']
-TOP=TARGET                                            # v2: validation/calibration on every served league
+MAIN=['T1','E0','SP1','I1','D1','F1','N1','P1','B1','G1','SC0',
+      'E1','SP2','I2','D2','F2','E2','E3','EC','SC1','SC2','SC3']
+# leagues with full-time scores and 1X2 odds only (football-data.co.uk "new" files): no half-time or corner markets
+EXTRA=['USA','ARG','AUT','BRA','CHN','DNK','FIN','IRL','SWE','SWZ','JPN','MEX','NOR','POL','ROU','RUS']
+TARGET=MAIN+EXTRA
+TOP=MAIN                                              # v2: calibration on the 22 leagues with half-time scores
 VAL=[2021,2022,2023]; TEST=[2024,2025]
 CORNER_1H_SHARE=0.470   # StatsBomb open data, 1,551 matches (2015/16 big-5): 46.98% of corners come before half-time
 # Weight of the odds-implied goal means (1 = odds only). Chosen on 2021-23: the exact-score log-likelihood was best

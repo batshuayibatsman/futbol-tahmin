@@ -15,7 +15,7 @@ for (const f of J.fixtures) {
   const same = (x, y) => (!x && !y) || (x && y && x[0] === y[0] && Math.abs(x[1] - y[1]) < 1e-9);
   if (!same(r.banko, f.banko) || !same(r.surpriz, f.surpriz)) pickMismatch++;
   let s = 0; for (const row of r.FT) for (const v of row) s += v; idErr = Math.max(idErr, Math.abs(s - 1));
-  let s2 = 0; for (const c of E.CELLS) s2 += r.markets['İY/MS ' + c[0] + '/' + c[1]]; idErr = Math.max(idErr, Math.abs(s2 - 1));
+  if ('İY/MS 1/1' in r.markets) { let s2 = 0; for (const c of E.CELLS) s2 += r.markets['İY/MS ' + c[0] + '/' + c[1]]; idErr = Math.max(idErr, Math.abs(s2 - 1)); }
 }
 const out = { fixtures: J.fixtures.length, checks: n, max_abs_diff: worst, worst: worstKey, pick_mismatch: pickMismatch, identity_error: idErr };
 console.log(JSON.stringify(out));

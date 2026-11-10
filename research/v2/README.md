@@ -16,3 +16,10 @@ Sırayla çalıştırılır (arşiv aynası: github.com/xgabora/Club-Football-Ma
 | 2,5 gol log-kaybı (Bet365: 0,679) | 0,679 | 0,687 |
 | Banko: model dedi / tuttu | %80,0 / %81,2 | %80,4 / %79,8 |
 | Sürpriz: model dedi / tuttu (olağan) | %17,4 / %17,5 (%11,7) | %18,3 / %18,1 (%12,4) |
+
+## Ek 16 lig (yalnızca maç sonu skoru ve 1X2 oranı)
+6. `extra.py <Matches.csv>` – ABD, Arjantin, Avusturya, Brezilya, Çin, Danimarka, Finlandiya, İrlanda, İsveç, İsviçre, Japonya,
+   Meksika, Norveç, Polonya, Romanya, Rusya: devre skoru olmadan walk-forward takım güçleri (ilk yarı payı 22 ligin ortalaması %44,6),
+   oranlardan güç farkı (toplam gol istatistikten). 2021-23'te en iyi ağırlık 0,90 (1,00 ile fark 0,0002; tek kural için 1 kullanılıyor);
+   2024'te 16 ligin hepsinde istatistikten isabetli (maç sonucu log-kaybı 1,043 → 1,016).
+7. `extra_eval.py` – lig sıklıkları (2021-23) ve 2024 testi: bankolar %80,9 dedi / %80,1 tuttu, sürprizler %33,7 / %33,7 (olağan %23,5).

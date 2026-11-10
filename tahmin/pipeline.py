@@ -11,7 +11,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 import numpy as np, pandas as pd
-from config import CFG, TARGET, ODDS_BLEND
+from config import CFG, TARGET, ODDS_BLEND, EXTRA
 from model import LeagueFitter, predict_means, match_distribution, summarize, apply_htft_cal
 from probs import predict_all
 from markets import (market_probs, pick_banko, pick_surprise, BANKO_MENU, BANKO_MIN, BANKO_MAX,
@@ -82,7 +82,7 @@ def main():
     if today.month in (7, 8, 9):
         py = SEASON - 1; codes.append(f'{py % 100:02d}{(py + 1) % 100:02d}')
     fd_status = {}
-    for div in TARGET:
+    for div in [d for d in TARGET if d not in EXTRA]:
         for c in codes:
             b, info = http.get(f'fd_{c}_{div}', S.FD_SEASON.format(code=c, div=div), FD_MIN)
             snap = ROOT / 'data' / 'seasons' / c / f'{div}.csv'
@@ -107,6 +107,24 @@ def main():
                 pd.DataFrame(rejected).to_csv(snap.with_name(f'{div}_reddedilen.csv'), index=False)
                 alert('UYARI', names[div], f'{len(rejected)} satır okunamadı (tarih geçersiz/gelecekte); {snap.parent.name}/{div}_reddedilen.csv dosyasına yazıldı')
         fd_status[div] = state['http'].get(f'fd_{code}_{div}', {})
+    # full-time-only leagues: one file per country with every season (kept: the last six seasons)
+    for div in [d for d in TARGET if d in EXTRA]:
+        b, info = http.get(f'fdnew_{div}', S.FD_NEW.format(code=div), FD_MIN)
+        snap = ROOT / 'data' / 'seasons' / 'new' / f'{div}.csv'
+        if info.get('action') == 'hata':
+            alert('UYARI', names[div], f'football-data indirilemedi ({info.get("error")}); son kayıtlı dosya kullanıldı')
+        if b is None or info.get('action') in ('önbellek', 'sınır', 'yok'):
+            continue
+        rows, rejected = S.parse_fd_new(div, b, today, SEASON - 6)
+        if rows is None:
+            alert('HATA', names[div], 'football-data dosyası okunamadı; eski dosya korundu'); continue
+        new = pd.DataFrame(rows, columns=S.STD + ['season'])
+        old = pd.read_csv(snap) if snap.exists() else pd.DataFrame(columns=S.STD + ['season'])
+        if len(new) < 0.9 * len(old):
+            alert('HATA', names[div], f'football-data satır sayısı azaldı ({len(old)} → {len(new)}); eski dosya korundu'); continue
+        snap.parent.mkdir(parents=True, exist_ok=True)
+        if not snap.exists() or new.to_csv(index=False) != old.to_csv(index=False):
+            new.to_csv(snap, index=False)
     # seasons missing from the archive mirror: downloaded once, then kept in data/seasons/<code>/
     for bc, divs in S.BACKFILL.items():
         for div in divs:
@@ -129,6 +147,12 @@ def main():
     if info.get('action') == 'hata':
         alert('UYARI', 'Oranlar', f'football-data fikstür/oran dosyası indirilemedi ({info.get("error")})')
     fd_fix_seen = state['http'].get('fd_fixtures', {}).get('ok')
+    if EXTRA:
+        b, info = http.get('fd_new_fixtures', S.FD_NEW_FIXTURES, fx_min)
+        if b:
+            fd_fix += S.parse_fd_new_fixtures(b, {S.LEAGUES[d]['fd']: d for d in TARGET if d in EXTRA})
+        if info.get('action') == 'hata':
+            alert('UYARI', 'Oranlar', f'football-data ek lig fikstür dosyası indirilemedi ({info.get("error")})')
 
     # ------------------------------------------------------------ 3. ESPN fixtures + live
     # ESPN refuses date ranges (HTTP 400). Per league: the default scoreboard (latest/current matchday, with the
@@ -235,12 +259,16 @@ def main():
     fnum = lambda x: None if x is None or x != x else float(x)
     for div in TARGET:
         df = D[D['div'] == div]
-        cur = df[(df.season == SEASON)]
-        canon = sorted(set(cur.home) | set(cur.away)) or sorted(set(df[df.season == SEASON - 1].home))
+        # season label: July-June, except the full-time-only leagues whose files carry their own (e.g. calendar years)
+        SEASON_L = int(df.season.max()) if (div in EXTRA and len(df)) else SEASON
+        cur = df[(df.season == SEASON_L)]
+        canon = sorted(set(cur.home) | set(cur.away)) or sorted(set(df[df.season == SEASON_L - 1].home))
         ext = {}
         for e in espn[div]:
             for side in ('home', 'away'):
-                ext.setdefault(e[side]['id'], [n for n in e[side]['names'] if n])
+                nm = [n for n in e[side]['names'] if n]
+                if nm and not str(nm[0]).upper().startswith('TBD'):         # play-off placeholders
+                    ext.setdefault(e[side]['id'], nm)
         mp, un, _ = build_map(div, ext, canon)
         espn_map[div] = mp
         if un:
@@ -281,9 +309,9 @@ def main():
                 fx[k]['oa'] = e
         ex_teams = {t for k in fx for t in k[:2]}
         fitter = LeagueFitter(df, CFG)
-        fit = fitter.fit(cutoff, SEASON, extra_teams=sorted(ex_teams))
+        fit = fitter.fit(cutoff, SEASON_L, extra_teams=sorted(ex_teams))
         has_c = fit['cmu'] is not None
-        C = df[(df.season == SEASON) & df.fit_ok]
+        C = df[(df.season == SEASON_L) & df.fit_ok]
         teams = sorted(set(C.home) | set(C.away) | ex_teams)
         tab = []
         for t in teams:
@@ -294,7 +322,7 @@ def main():
         rank = {r['team']: i + 1 for i, r in enumerate(tab)}
         last_match = str(C.date.max().date()) if len(C) else None
         LG = S.LEAGUES[div]
-        leagues[div] = dict(name=names[div], short=LG['short'], country=LG['country'], corners=has_c,
+        leagues[div] = dict(name=names[div], short=LG['short'], country=LG['country'], corners=has_c, ht=bool(fit['has_ht']),
                             mu=float(fit['mu']), gamma=float(fit['gamma']), cmu=fnum(fit['cmu']), cgamma=fnum(fit['cgamma']),
                             c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']), played=int(len(C)), last_match=last_match,
                             round=f'{int(round(2 * len(C) / max(len(teams), 1))) + 1}. hafta' if len(C) else '1. hafta',
@@ -303,7 +331,7 @@ def main():
                                         att=float(fit['att'][fit['idx'][t]]), de=float(fit['de'][fit['idx'][t]]),
                                         catt=fnum(fit['catt'][fit['idx'][t]]) if has_c else None,
                                         cde=fnum(fit['cde'][fit['idx'][t]]) if has_c else None) for t in teams])
-        in_season = today.month >= 8 or today.month <= 5
+        in_season = bool(fx) if div in EXTRA else (today.month >= 8 or today.month <= 5)
         if in_season and last_match and (today - dt.date.fromisoformat(last_match)).days > 16:
             alert('UYARI', names[div], f'football-data sonuçları bayat olabilir: son maç {last_match}')
         H = df[df.fit_ok]
@@ -319,9 +347,9 @@ def main():
             postponed = bool(e and (e.get('status_name') or '').upper() in ('STATUS_POSTPONED', 'STATUS_CANCELED', 'STATUS_SUSPENDED', 'STATUS_ABANDONED'))
             if st in ('in',) or (st == 'pre' and ko - now <= dt.timedelta(hours=1)) or (now - dt.timedelta(hours=3) <= ko <= now):
                 hot_next = True
-            fid = f'{SEASON}|{div}|{h}|{aw}|{ko:%Y-%m-%d}'     # date included: in some leagues the same pairing is played twice
+            fid = f'{SEASON_L}|{div}|{h}|{aw}|{ko:%Y-%m-%d}'     # date included: in some leagues the same pairing is played twice
             ko_tr = ko.astimezone(TR)
-            f = {'fid': fid, 'div': div, 'season': SEASON, 'home': h, 'away': aw, 'home_name': disp(h), 'away_name': disp(aw),
+            f = {'fid': fid, 'div': div, 'season': SEASON_L, 'home': h, 'away': aw, 'home_name': disp(h), 'away_name': disp(aw),
                  'kickoff': ko.isoformat(), 'date_tr': ko_tr.strftime('%Y-%m-%d'), 'time_tr': ko_tr.strftime('%H:%M'),
                  'state': 'postponed' if postponed else st}
             if e:
@@ -348,7 +376,7 @@ def main():
                 lh, la, ch, ca = predict_means(fit, h, aw)
                 fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
                 inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
-                              lh_model=float(lh), la_model=float(la))
+                              lh_model=float(lh), la_model=float(la), ht=bool(fit['has_ht']))
                 facts = match_facts(C, H, h, aw, disp(h), disp(aw), cutoff)
                 basis = 'güncel'
             elif in_pre:
@@ -360,11 +388,11 @@ def main():
                 lh, la, ch, ca = predict_means(fit, h, aw)
                 fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
                 inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
-                              lh_model=float(lh), la_model=float(la))
+                              lh_model=float(lh), la_model=float(la), ht=bool(fit['has_ht']))
                 facts = []
                 basis = 'maç başladıktan sonra hesaplandı'
             f['pred_basis'] = basis
-            X = pd.DataFrame([dict({k: inputs.get(k) for k in ('lh', 'la', 'ch', 'ca', 'c_avg', 's1h', 's1a')}, hg=0, ag=0, hthg=0, htag=0, hc=0, ac=0)])
+            X = pd.DataFrame([dict({k: inputs.get(k) for k in ('lh', 'la', 'ch', 'ca', 'c_avg', 's1h', 's1a')}, ht=inputs.get('ht', True), hg=0, ag=0, hthg=0, htag=0, hc=0, ac=0)])
             q = predict_all(X, cal).iloc[0].to_dict()
             m = market_probs(q)
             base = leagues[div]['base']

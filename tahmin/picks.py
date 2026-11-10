@@ -127,7 +127,7 @@ class PickLog:
                 durum = 'Doğrulanamadı'
                 o = None
             else:
-                hthg = int(r.hthg) if full else 0; htag = int(r.htag) if full else 0
+                hthg = None if (not full or pd.isna(r.hthg)) else int(r.hthg); htag = None if (not full or pd.isna(r.htag)) else int(r.htag)
                 hc = None if pd.isna(r.hc) else int(r.hc); ac = None if pd.isna(r.ac) else int(r.ac)
                 o = market_outcomes(int(r.hg), int(r.ag), hthg, htag, hc, ac)
                 o['Sürpriz MS 1'] = o['MS 1']; o['Sürpriz MS 2'] = o['MS 2']

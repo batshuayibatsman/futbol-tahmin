@@ -34,15 +34,35 @@ LEAGUES = {
     'B1': {'name': 'Belçika Pro League', 'short': 'Pro League', 'country': 'Belçika', 'espn': 'bel.1', 'odds': 'soccer_belgium_first_div'},
     'P1': {'name': 'Liga Portugal', 'short': 'Liga Portugal', 'country': 'Portekiz', 'espn': 'por.1', 'odds': 'soccer_portugal_primeira_liga'},
     'G1': {'name': 'Yunanistan Süper Ligi', 'short': 'Süper Lig', 'country': 'Yunanistan', 'espn': 'gre.1', 'odds': 'soccer_greece_super_league'},
+    # full-time-only leagues (football-data.co.uk/new/<code>.csv); fd: country name in new_league_fixtures.csv
+    'USA': {'name': 'ABD MLS', 'short': 'MLS', 'country': 'ABD', 'espn': 'usa.1', 'odds': 'soccer_usa_mls', 'new': True, 'fd': 'USA'},
+    'ARG': {'name': 'Arjantin Liga Profesional', 'short': 'Liga Profesional', 'country': 'Arjantin', 'espn': 'arg.1', 'odds': 'soccer_argentina_primera_division', 'new': True, 'fd': 'Argentina'},
+    'AUT': {'name': 'Avusturya Bundesliga', 'short': 'Bundesliga', 'country': 'Avusturya', 'espn': 'aut.1', 'odds': 'soccer_austria_bundesliga', 'new': True, 'fd': 'Austria'},
+    'BRA': {'name': 'Brezilya Série A', 'short': 'Série A', 'country': 'Brezilya', 'espn': 'bra.1', 'odds': 'soccer_brazil_campeonato', 'new': True, 'fd': 'Brazil'},
+    'CHN': {'name': 'Çin Süper Ligi', 'short': 'Süper Lig', 'country': 'Çin', 'espn': 'chn.1', 'odds': 'soccer_china_superleague', 'new': True, 'fd': 'China'},
+    'DNK': {'name': 'Danimarka Superliga', 'short': 'Superliga', 'country': 'Danimarka', 'espn': 'den.1', 'odds': 'soccer_denmark_superliga', 'new': True, 'fd': 'Denmark'},
+    'FIN': {'name': 'Finlandiya Veikkausliiga', 'short': 'Veikkausliiga', 'country': 'Finlandiya', 'espn': None, 'odds': 'soccer_finland_veikkausliiga', 'new': True, 'fd': 'Finland'},
+    'IRL': {'name': 'İrlanda Premier Division', 'short': 'Premier Division', 'country': 'İrlanda', 'espn': None, 'odds': 'soccer_league_of_ireland', 'new': True, 'fd': 'Ireland'},
+    'SWE': {'name': 'İsveç Allsvenskan', 'short': 'Allsvenskan', 'country': 'İsveç', 'espn': 'swe.1', 'odds': 'soccer_sweden_allsvenskan', 'new': True, 'fd': 'Sweden'},
+    'SWZ': {'name': 'İsviçre Super League', 'short': 'Super League', 'country': 'İsviçre', 'espn': None, 'odds': 'soccer_switzerland_superleague', 'new': True, 'fd': 'Switzerland'},
+    'JPN': {'name': 'Japonya J1 League', 'short': 'J1 League', 'country': 'Japonya', 'espn': 'jpn.1', 'odds': 'soccer_japan_j_league', 'new': True, 'fd': 'Japan'},
+    'MEX': {'name': 'Meksika Liga MX', 'short': 'Liga MX', 'country': 'Meksika', 'espn': 'mex.1', 'odds': 'soccer_mexico_ligamx', 'new': True, 'fd': 'Mexico'},
+    'NOR': {'name': 'Norveç Eliteserien', 'short': 'Eliteserien', 'country': 'Norveç', 'espn': 'nor.1', 'odds': 'soccer_norway_eliteserien', 'new': True, 'fd': 'Norway'},
+    'POL': {'name': 'Polonya Ekstraklasa', 'short': 'Ekstraklasa', 'country': 'Polonya', 'espn': None, 'odds': 'soccer_poland_ekstraklasa', 'new': True, 'fd': 'Poland'},
+    'ROU': {'name': 'Romanya Superliga', 'short': 'Superliga', 'country': 'Romanya', 'espn': None, 'odds': None, 'new': True, 'fd': 'Romania'},
+    'RUS': {'name': 'Rusya Premier Ligi', 'short': 'Premier Lig', 'country': 'Rusya', 'espn': 'rus.1', 'odds': None, 'new': True, 'fd': 'Russia'},
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
 FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
+FD_NEW = 'https://www.football-data.co.uk/new/{code}.csv'
+FD_NEW_FIXTURES = 'https://www.football-data.co.uk/new_league_fixtures.csv'
 ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}'
 ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
 # Updates run only on request and with --force every source is re-checked, so one run must fit a full refresh:
-# football-data up to 45 files (22 leagues, two seasons in Jul-Sep, fixtures), ESPN 20 scoreboards + every match date in 16 days.
-PER_RUN_CAP = {'football-data.co.uk': 60, 'site.api.espn.com': 400, 'api.the-odds-api.com': 6}
+# football-data up to 71 files (22 leagues, two seasons in Jul-Sep, 16 full-time-only files, 2 fixture files, backfill),
+# ESPN 31 scoreboards + every match date in 16 days.
+PER_RUN_CAP = {'football-data.co.uk': 90, 'site.api.espn.com': 500, 'api.the-odds-api.com': 6}
 # season files missing from the archive mirror (whole or partial seasons inside the 4-year window): fetched once,
 # kept in data/seasons/<code>/ and committed, never downloaded again
 BACKFILL = {'2223': ['G1'], '2324': ['G1'], '2425': ['G1', 'EC', 'SC0', 'SC1', 'SC2', 'SC3', 'T1']}
@@ -191,6 +211,70 @@ def parse_fd_season(div, b, today, alerts):
                     'mh': _num(r, 'MaxH', 'BbMxH'), 'md': _num(r, 'MaxD', 'BbMxD'), 'ma': _num(r, 'MaxA', 'BbMxA'),
                     'o25': _num(r, 'B365>2.5'), 'u25': _num(r, 'B365<2.5')})
     return out, rejected
+
+
+def _season_label(x):
+    """'2026' -> 2026, '2025/2026' -> 2025 (start year)."""
+    t = (x or '').strip()
+    try:
+        return int(t.split('/')[0])
+    except ValueError:
+        return None
+
+
+def parse_fd_new(div, b, today, keep_from):
+    """football-data.co.uk 'new' league file (all seasons; full-time score and closing odds only).
+    Returns (rows with STD columns + 'season', rejected) or (None, []) when unreadable."""
+    rows = _rows(b)
+    if not rows or 'Home' not in rows[0] or 'HG' not in rows[0]:
+        return None, []
+    out, rejected = [], []
+    for r in rows:
+        if not (r.get('Home') or '').strip():
+            continue
+        se = _season_label(r.get('Season'))
+        d = _date(r.get('Date'))
+        if d is None or d > today or se is None:
+            rejected.append({'neden': 'tarih/sezon geçersiz', **r}); continue
+        if se < keep_from:
+            continue
+        def iv(k):
+            v = (r.get(k) or '').strip()
+            try:
+                return int(float(v)) if v else None
+            except ValueError:
+                return None
+        out.append({'div': div, 'date': d.isoformat(), 'time': (r.get('Time') or '').strip(), 'home': r['Home'].strip(), 'away': r['Away'].strip(),
+                    'hg': iv('HG'), 'ag': iv('AG'), 'hthg': None, 'htag': None, 'hc': None, 'ac': None,
+                    'oh': _num(r, 'B365CH', 'AvgCH'), 'od': _num(r, 'B365CD', 'AvgCD'), 'oa': _num(r, 'B365CA', 'AvgCA'),
+                    'mh': _num(r, 'MaxCH'), 'md': _num(r, 'MaxCD'), 'ma': _num(r, 'MaxCA'), 'o25': None, 'u25': None, 'season': se})
+    return out, rejected
+
+
+def parse_fd_new_fixtures(b, country_to_div):
+    """Upcoming fixtures of the full-time-only leagues with 1X2 odds (Pinnacle, best, average, Bet365). Times are UK local."""
+    from zoneinfo import ZoneInfo
+    uk = ZoneInfo('Europe/London')
+    out = []
+    for r in _rows(b):
+        div = country_to_div.get((r.get('Country') or '').strip())
+        d = _date(r.get('Date'))
+        if not div or d is None:
+            continue
+        t = (r.get('Time') or '15:00').strip() or '15:00'
+        try:
+            hh, mm = map(int, t.split(':')[:2])
+        except ValueError:
+            hh, mm = 15, 0
+        ko = dt.datetime(d.year, d.month, d.day, hh, mm, tzinfo=uk).astimezone(UTC)
+        odds = {}
+        for book, (h, x, a) in {'pin': ('PSH', 'PSD', 'PSA'), 'max': ('MaxH', 'MaxD', 'MaxA'), 'avg': ('AvgH', 'AvgD', 'AvgA'), 'b365': ('B365H', 'B365D', 'B365A')}.items():
+            v = {'1': _num(r, h), 'X': _num(r, x), '2': _num(r, a)}
+            v = {k: q for k, q in v.items() if q and q > 1}
+            if v:
+                odds[book] = v
+        out.append({'div': div, 'kickoff': ko.isoformat(), 'home': r['Home'].strip(), 'away': r['Away'].strip(), 'odds': odds})
+    return out
 
 
 ODDS_COLS = {'b365': ('B365H', 'B365D', 'B365A', 'B365>2.5', 'B365<2.5'), 'pin': ('PSH', 'PSD', 'PSA', 'P>2.5', 'P<2.5'),

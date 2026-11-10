@@ -38,7 +38,11 @@ def load(root, today):
         audit['issues'].append({'tür': 'yinelenen maç', 'n': int(dup.sum()), 'işlem': 'son kopya tutuldu',
                                 'örnek': D.loc[dup, ['div', 'date', 'home', 'away']].astype(str).values.tolist()[:5]})
         D = D[~dup]
-    D['season'] = season_of(D.date)
+    calc = season_of(D.date)
+    if 'season' in D.columns:          # full-time-only league files carry their own season label (e.g. calendar-year leagues)
+        D['season'] = np.where(D['season'].notna(), pd.to_numeric(D['season'], errors='coerce').fillna(-1), calc).astype(int)
+    else:
+        D['season'] = calc
     htft = (D.hthg > D.hg) | (D.htag > D.ag)
     if htft.any():
         audit['issues'].append({'tür': 'devre skoru maç sonundan büyük', 'n': int(htft.sum()), 'işlem': 'devre skoru boş bırakıldı',
@@ -46,6 +50,12 @@ def load(root, today):
         D.loc[htft, ['hthg', 'htag']] = np.nan
     D['has_ft'] = D.hg.notna() & D.ag.notna()
     D['fit_ok'] = D.has_ft & D.hthg.notna() & D.htag.notna()          # goals model
+    # leagues whose results never include a half-time score (football-data 'new' leagues): full-time scores are enough
+    ht_share = (D.hthg.notna() & D.htag.notna()).groupby(D['div']).mean()
+    ft_only = set(ht_share[ht_share < 0.05].index)
+    if ft_only:
+        D.loc[D['div'].isin(ft_only), 'fit_ok'] = D.loc[D['div'].isin(ft_only), 'has_ft']
+        audit['ft_only'] = sorted(ft_only)
     D['fit_c'] = D.fit_ok & D.hc.notna() & D.ac.notna()                # corners model (not every league records corners)
     nf = ~D.has_ft
     if nf.any():

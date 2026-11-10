@@ -76,9 +76,16 @@ class LeagueFitter:
         out.update(mu=mu, gamma=g, att=att, de=de)
         sw = w.sum()
         out['eff_n'] = float(sw)
-        # league first-half share of goals (home / away), same weights
-        out['s1_h'] = float((w * m.hthg.values).sum() / max((w * m.hg.values).sum(), 1e-9))
-        out['s1_a'] = float((w * m.htag.values).sum() / max((w * m.ag.values).sum(), 1e-9))
+        # league first-half share of goals (home / away), same weights; leagues without half-time scores use the
+        # 22-league average (only their full-time markets are shown)
+        hm = m.hthg.notna().values & m.htag.notna().values
+        if hm.sum() >= 100:
+            out['s1_h'] = float((w[hm] * m.hthg.values[hm]).sum() / max((w[hm] * m.hg.values[hm]).sum(), 1e-9))
+            out['s1_a'] = float((w[hm] * m.htag.values[hm]).sum() / max((w[hm] * m.ag.values[hm]).sum(), 1e-9))
+            out['has_ht'] = True
+        else:
+            out['s1_h'], out['s1_a'] = cfg.get('s1_default', (0.446, 0.446))
+            out['has_ht'] = False
         # ---- corners (only where the league records them: at least half of the window's matches and 200 rows)
         if len(mc) >= max(200, 0.5 * len(m)):
             hic = mc.home.map(idx).values; aic = mc.away.map(idx).values

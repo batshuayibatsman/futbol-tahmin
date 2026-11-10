@@ -80,12 +80,12 @@
   const CELLS = ['11', '1X', '12', 'X1', 'XX', 'X2', '21', '2X', '22'];
   const hasNum = x => x !== null && x !== undefined && x === x;
 
-  function rawProbs(lh, la, ch, ca, cavg, s1h, s1a, cal) {
+  function rawProbs(lh, la, ch, ca, cavg, s1h, s1a, cal, hasHT) {
     const { M1, M2, S } = matchDistribution(lh, la, s1h, s1a, cal);
     let { FT, htft } = summarize(M1, M2, S);
     if (cal.F) ({ FT, htft } = applyHtftCal(FT, htft, cal.F));
     const n = MAXG + 1, N = 2 * n - 1;
-    const d = {};
+    const d = { ht: hasHT !== false && hasHT !== 0 };    // false: league without half-time scores (full-time markets only)
     let p1 = 0, px = 0, p2 = 0, eg = 0; const tot = new Array(2 * N - 1).fill(0);
     for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const v = FT[i][j]; if (i > j) p1 += v; else if (i === j) px += v; else p2 += v; tot[i + j] += v; eg += (i + j) * v; }
     d.p1 = p1; d.px = px; d.p2 = p2;
@@ -120,17 +120,19 @@
       'MS 1': d.p1, 'MS X': d.px, 'MS 2': d.p2,
       'ÇŞ 1X': d.p1 + d.px, 'ÇŞ X2': d.px + d.p2, 'ÇŞ 12': d.p1 + d.p2,
       'KG Var': d.btts, 'KG Yok': 1 - d.btts,
+    };
+    if (d.ht !== false) Object.assign(m, {
       'İY 1': d.h1, 'İY X': d.hx, 'İY 2': d.h2,
       'İY 0.5 Üst': d['ho0.5'], 'İY 0.5 Alt': 1 - d['ho0.5'],
       'İY 1.5 Üst': d['ho1.5'], 'İY 1.5 Alt': 1 - d['ho1.5'],
       'İY 2.5 Üst': d['ho2.5'], 'İY 2.5 Alt': 1 - d['ho2.5'],
-    };
+    });
     for (const L of ['1.5', '2.5', '3.5', '4.5']) { m[L + ' Üst'] = d['o' + L]; m[L + ' Alt'] = 1 - d['o' + L]; }
     if (hasNum(d['co7.5'])) {
       for (const L of ['7.5', '8.5', '9.5', '10.5', '11.5', '12.5']) { m['Korner ' + L + ' Üst'] = d['co' + L]; m['Korner ' + L + ' Alt'] = 1 - d['co' + L]; }
       for (const L of ['3.5', '4.5', '5.5']) if (hasNum(d['hco' + L])) { m['İY Korner ' + L + ' Üst'] = d['hco' + L]; m['İY Korner ' + L + ' Alt'] = 1 - d['hco' + L]; }
     }
-    for (const c of CELLS) m['İY/MS ' + c[0] + '/' + c[1]] = d['hf' + c];
+    if (d.ht !== false) for (const c of CELLS) m['İY/MS ' + c[0] + '/' + c[1]] = d['hf' + c];
     if (d.p1 < d.p2) m['Sürpriz MS 1'] = d.p1; else m['Sürpriz MS 2'] = d.p2;
     return m;
   }
@@ -152,7 +154,7 @@
 
   // all probabilities from the seven model inputs stored with every fixture
   function fromInputs(inp, base, meta) {
-    const r = rawProbs(inp.lh, inp.la, inp.ch, inp.ca, inp.c_avg, inp.s1h, inp.s1a, meta.cal);
+    const r = rawProbs(inp.lh, inp.la, inp.ch, inp.ca, inp.c_avg, inp.s1h, inp.s1a, meta.cal, inp.ht);
     const m = marketProbs(r.d);
     return Object.assign({ lh: inp.lh, la: inp.la, ch: inp.ch, ca: inp.ca }, r,
       { markets: m, banko: pickBanko(m, meta.rules), surpriz: pickSurprise(m, base || {}, meta.rules) });
@@ -188,7 +190,7 @@
   }
   function predict(L, h, a, meta) {
     const t = teamMeans(L, h, a);
-    const r = rawProbs(t.lh, t.la, t.ch, t.ca, L.c_avg, L.s1h, L.s1a, meta.cal);
+    const r = rawProbs(t.lh, t.la, t.ch, t.ca, L.c_avg, L.s1h, L.s1a, meta.cal, L.ht);
     const m = marketProbs(r.d);
     return Object.assign({}, t, r, { markets: m, banko: pickBanko(m, meta.rules), surpriz: pickSurprise(m, L.base, meta.rules) });
   }

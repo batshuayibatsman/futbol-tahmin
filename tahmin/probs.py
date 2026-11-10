@@ -19,6 +19,7 @@ def predict_all(T,cal):
         FT,htft=summarize(M1,M2,S)
         if cal.get('F') is not None: FT,htft=apply_htft_cal(FT,htft,cal['F'])
         d={'i':r.Index}
+        ht=getattr(r,'ht',True); d['ht']=not (ht is False or ht==0)      # False: league without half-time scores
         d['p1']=FT[I>J].sum(); d['px']=FT[I==J].sum(); d['p2']=FT[I<J].sum()
         tot=np.bincount(TOT.ravel(),FT.ravel())
         for L in (0.5,1.5,2.5,3.5,4.5): d[f'o{L}']=tot[int(L+.5):].sum()
@@ -28,9 +29,11 @@ def predict_all(T,cal):
         d['ho0.5']=t1[1:].sum(); d['ho1.5']=t1[2:].sum(); d['ho2.5']=t1[3:].sum()
         for a,A in enumerate('1X2'):
             for b,B in enumerate('1X2'): d[f'hf{A}{B}']=htft[a,b]
-        hg,ag,hh,ha=int(r.hg),int(r.ag),int(r.hthg),int(r.htag)
+        hg,ag=int(r.hg),int(r.ag)
         d['p_score']=FT[hg,ag] if hg<2*n-1 and ag<2*n-1 else 1e-12
-        d['p_htscore']=M1[hh,ha] if hh<n and ha<n else 1e-12
+        if r.hthg==r.hthg and r.htag==r.htag:
+            hh,ha=int(r.hthg),int(r.htag)
+            d['p_htscore']=M1[hh,ha] if hh<n and ha<n else 1e-12
         fl=np.argsort(-FT.ravel())[:3]; d['top3']=[(int(k//(2*n-1)),int(k%(2*n-1))) for k in fl]
         hl=np.argsort(-M1.ravel())[:3]; d['httop3']=[(int(k//n),int(k%n)) for k in hl]
         d['exp_g']=float((TOT*FT).sum()); d['exp_g1']=float(((I1+J1)*M1).sum())

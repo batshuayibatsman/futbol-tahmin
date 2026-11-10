@@ -62,6 +62,26 @@ if mirror:
                             'oh': g.OddHome, 'od': g.OddDraw, 'oa': g.OddAway, 'mh': g.MaxHome, 'md': g.MaxDraw, 'ma': g.MaxAway, 'o25': g.Over25, 'u25': g.Under25})
         p.parent.mkdir(parents=True, exist_ok=True); out[S.STD].to_csv(p, index=False)
 
+# full-time-only leagues: the mirror ends in Dec 2024, so its last three seasons are shifted by two years (test copy only)
+EXTRA_MIRROR = {'ARG': 'ARG', 'AUT': 'AUT', 'BRA': 'BRA', 'CHN': 'CHN', 'DNK': 'DEN', 'FIN': 'FIN', 'IRL': 'IRL', 'JPN': 'JAP', 'MEX': 'MEX',
+                'NOR': 'NOR', 'POL': 'POL', 'ROU': 'ROM', 'RUS': 'RUS', 'SWE': 'SWE', 'SWZ': 'SUI', 'USA': 'USA'}
+if mirror:
+    for div, md in EXTRA_MIRROR.items():
+        if div not in TARGET:
+            continue
+        p = root / 'data' / 'seasons' / 'new' / f'{div}.csv'
+        g = X[(X.Division == md) & (X.d >= '2022-01-01')].copy()
+        if p.exists() or g.empty:
+            continue
+        g['d2'] = g.d + pd.DateOffset(years=2)
+        cal = div in ('ARG', 'BRA', 'CHN', 'FIN', 'IRL', 'JPN', 'NOR', 'SWE', 'USA')
+        se = g.d2.dt.year if cal else g.d2.dt.year.where(g.d2.dt.month >= 7, g.d2.dt.year - 1)
+        out = pd.DataFrame({'div': div, 'date': g.d2.dt.strftime('%Y-%m-%d'), 'time': '', 'home': g.HomeTeam, 'away': g.AwayTeam,
+                            'hg': g.FTHome, 'ag': g.FTAway, 'hthg': None, 'htag': None, 'hc': None, 'ac': None,
+                            'oh': g.OddHome, 'od': g.OddDraw, 'oa': g.OddAway, 'mh': g.MaxHome, 'md': g.MaxDraw, 'ma': g.MaxAway, 'o25': None, 'u25': None, 'season': se})
+        p.parent.mkdir(parents=True, exist_ok=True); out.to_csv(p, index=False)
+        teams[div] = sorted(set(g[g.d2 >= '2026-01-01'].HomeTeam) | set(g[g.d2 >= '2026-01-01'].AwayTeam))
+
 # football-data-style fixtures with fake prices for the leagues without a current ESPN feed
 rows = []
 for div in [d for d in TARGET if not S.LEAGUES[d]['espn']]:
@@ -71,7 +91,12 @@ for div in [d for d in TARGET if not S.LEAGUES[d]['espn']]:
         rows.append({'Div': div, 'Date': ko.strftime('%d/%m/%Y'), 'Time': ko.strftime('%H:%M'), 'HomeTeam': t[i], 'AwayTeam': t[i + 1],
                      'B365H': 2.3, 'B365D': 3.3, 'B365A': 3.1, 'MaxH': 2.45, 'MaxD': 3.5, 'MaxA': 3.3, 'AvgH': 2.3, 'AvgD': 3.3, 'AvgA': 3.1,
                      'B365>2.5': 1.85, 'B365<2.5': 1.95, 'Max>2.5': 1.93, 'Max<2.5': 2.02, 'Avg>2.5': 1.86, 'Avg<2.5': 1.94})
-if rows:
-    with open(cache / 'fd_fixtures.bin', 'w', newline='', encoding='utf-8') as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
-print('sahte akış:', counts, '| football-data fikstür satırı:', len(rows))
+main_rows = [r for r in rows if r['Div'] in S.LEAGUES and not S.LEAGUES[r['Div']].get('new')]
+new_rows = [{'Country': S.LEAGUES[r['Div']]['fd'], 'League': '', 'Date': r['Date'], 'Time': r['Time'], 'Home': r['HomeTeam'], 'Away': r['AwayTeam'],
+             'PSH': r['B365H'], 'PSD': r['B365D'], 'PSA': r['B365A'], 'AvgH': r['AvgH'], 'AvgD': r['AvgD'], 'AvgA': r['AvgA'],
+             'B365H': r['B365H'], 'B365D': r['B365D'], 'B365A': r['B365A']} for r in rows if S.LEAGUES[r['Div']].get('new')]
+for name, rr in (('fd_fixtures.bin', main_rows), ('fd_new_fixtures.bin', new_rows)):
+    if rr:
+        with open(cache / name, 'w', newline='', encoding='utf-8') as f:
+            w = csv.DictWriter(f, fieldnames=list(rr[0].keys())); w.writeheader(); w.writerows(rr)
+print('sahte akış:', counts, '| football-data fikstür satırı:', len(main_rows), '+ ek lig', len(new_rows))

@@ -485,7 +485,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     $('#l-surpriz').innerHTML = sp.length ? sp.slice(0, 8).map(({ f, pk }) => { const b = f.L.base[pk.k], o = bestOdds(f, pk.k); return pickRow(f, pk.k, pk.p, 'fl', `adil oran ${odd(pk.p)}${o ? ` · en iyi ${num(o, 2)}` : ''}<br>olağan ${pct(b)} · ${num(pk.lift || (b ? pk.p / b : 0))} kat · ${pk.locked ? 'karnede' : 'geçici'}`); }).join('') : '<div class="empty">Şu an sürpriz şartını sağlayan yaklaşan maç yok.</div>';
     const st = BT.surpriz || { all: {} };
     $('#nb-surpriz').textContent = `Sürpriz, o ligde olağan sıklığının en az ${num(R.surprise_min_lift, 2)} katı olası görünen sonuçtur (deplasman/ev sahibi sürprizi, beraberlik, İY/MS dönüşü, gollü ilk yarı, düşük/yüksek korner). Çoğu tutmaz: geçmiş testte ${pct(st.all.hit, 1)} tuttu, aynı sonuçların olağan sıklığı ${pct(st.all.base, 1)} idi.`;
-    const rv = up.map(f => { const a = f.r.markets['İY/MS 1/2'], b = f.r.markets['İY/MS 2/1']; return { f, k: a >= b ? 'İY/MS 1/2' : 'İY/MS 2/1', p: Math.max(a, b) }; }).sort((x, y) => (y.p - x.p) || (x.f.i - y.f.i));
+    const rv = up.filter(f => f.L.ht !== false).map(f => { const a = f.r.markets['İY/MS 1/2'], b = f.r.markets['İY/MS 2/1']; return { f, k: a >= b ? 'İY/MS 1/2' : 'İY/MS 2/1', p: Math.max(a, b) }; }).sort((x, y) => (y.p - x.p) || (x.f.i - y.f.i));
     $('#l-donus').innerHTML = rv.length ? rv.slice(0, 6).map(o => pickRow(o.f, o.k, o.p, 'fl', `adil oran ${odd(o.p)}<br>bu ligde olağan ${pct(o.f.L.base[o.k])}`)).join('') : '<div class="empty">Yaklaşan maç yok.</div>';
     const h = BT.htft || {}, h12 = h['İY/MS 1/2'] || {}, h21 = h['İY/MS 2/1'] || {};
     $('#nb-donus').textContent = h.cells ? `1/2 ve 2/1 nadirdir: test maçlarında 1/2 oranı %${num(100 * h.cells['İY/MS 1/2'].actual)}, 2/1 oranı %${num(100 * h.cells['İY/MS 2/1'].actual)} oldu. Modelin en yüksek ihtimal verdiği %10'luk dilimde %${num(100 * h12.top10_actual)} ve %${num(100 * h21.top10_actual)} çıktı (diğer maçlarda %${num(100 * h12.rest_actual)} ve %${num(100 * h21.rest_actual)}). Seçim işe yarıyor ama her 25–30 maçta 1 kez tutar.` : '';
@@ -526,7 +526,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       <span class="mteams"><span class="tn">${esc(c.home_name)}<small>${c.h.rank}.</small></span>${sc('h')}
       <span class="tn">${esc(c.away_name)}<small>${c.a.rank}.</small></span>${sc('a')}</span>
       <span>${bar(m)}</span>
-      <span class="quick"><span class="q"><span>Gol İY · MS</span><b>${num(d.exp_g1)} · ${num(d.exp_g)}</b></span>
+      <span class="quick">${c.L.ht === false ? `<span class="q"><span>Gol MS</span><b>${num(d.exp_g)}</b></span>` : `<span class="q"><span>Gol İY · MS</span><b>${num(d.exp_g1)} · ${num(d.exp_g)}</b></span>`}
       <span class="q"><span>Korner İY · MS</span><b>${d.exp_c === null ? 'veri yok' : `${num(d.exp_c1)} · ${num(d.exp_c)}`}</b></span>
       <span class="q"><span>En olası skor</span><b>${top[0]}-${top[1]} · ${pct(top[2])}</b></span></span>
       ${chips.length ? `<span class="chips">${chips.join('')}</span>` : ''}`;
@@ -562,23 +562,24 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     return h;
   }
   function detailHTML(c) {
-    const m = c.r.markets, d = c.r.d, t = c.r.team, H = c.home_name, A = c.away_name;
+    const m = c.r.markets, d = c.r.d, t = c.r.team, H = c.home_name, A = c.away_name, HT = c.L.ht !== false;
+    const h1 = x => HT ? num(x) : '—';
     const sb = `<table class="sb"><thead><tr><th></th><th>İlk yarı</th><th>Maç sonu</th></tr></thead><tbody>
       <tr class="grp"><th colspan="3">Beklenen gol</th></tr>
-      <tr><th>${esc(H)}</th><td>${num(t.gh1)}</td><td>${num(t.gh)}</td></tr>
-      <tr><th>${esc(A)}</th><td>${num(t.ga1)}</td><td>${num(t.ga)}</td></tr>
-      <tr class="tot"><th>Toplam</th><td>${num(d.exp_g1)}</td><td>${num(d.exp_g)}</td></tr>
+      <tr><th>${esc(H)}</th><td>${h1(t.gh1)}</td><td>${num(t.gh)}</td></tr>
+      <tr><th>${esc(A)}</th><td>${h1(t.ga1)}</td><td>${num(t.ga)}</td></tr>
+      <tr class="tot"><th>Toplam</th><td>${h1(d.exp_g1)}</td><td>${num(d.exp_g)}</td></tr>
       ${d.exp_c === null ? '' : `<tr class="grp"><th colspan="3">Beklenen korner</th></tr>
       <tr><th>${esc(H)}</th><td>${num(t.ch1)}</td><td>${num(t.ch)}</td></tr>
       <tr><th>${esc(A)}</th><td>${num(t.ca1)}</td><td>${num(t.ca)}</td></tr>
       <tr class="tot"><th>Toplam</th><td>${num(d.exp_c1)}</td><td>${num(d.exp_c)}</td></tr>`}</tbody></table>`;
     const res = `<table class="tbl"><thead><tr><th>Sonuç</th><th>1</th><th>X</th><th>2</th></tr></thead><tbody>
-      ${[['Maç sonu', 'MS'], ['İlk yarı', 'İY']].map(([lab, p]) => { const v = [m[p + ' 1'], m[p + ' X'], m[p + ' 2']], mx = Math.max(...v);
+      ${[['Maç sonu', 'MS'], ['İlk yarı', 'İY']].filter(([, p]) => HT || p === 'MS').map(([lab, p]) => { const v = [m[p + ' 1'], m[p + ' X'], m[p + ' 2']], mx = Math.max(...v);
         return `<tr><td>${lab}</td>${v.map(x => `<td class="${x === mx ? 'hi' : ''}">${pct(x)}<small>${odd(x)}</small></td>`).join('')}</tr>`; }).join('')}
       <tr><td>Çifte şans</td><td>1X ${pct(m['ÇŞ 1X'])}</td><td>12 ${pct(m['ÇŞ 12'])}</td><td>X2 ${pct(m['ÇŞ X2'])}</td></tr></tbody></table>`;
     let g3 = '<div class="g3" role="table" aria-label="İY/MS olasılıkları"><span class="h"></span><span class="h">MS 1</span><span class="h">MS X</span><span class="h">MS 2</span>';
-    const mxh = Math.max(...E.CELLS.map(c2 => m['İY/MS ' + c2[0] + '/' + c2[1]]));
-    for (const a of ['1', 'X', '2']) {
+    const mxh = HT ? Math.max(...E.CELLS.map(c2 => m['İY/MS ' + c2[0] + '/' + c2[1]])) : 1;
+    for (const a of (HT ? ['1', 'X', '2'] : [])) {
       g3 += `<span class="r">İY ${a}</span>`;
       for (const b of ['1', 'X', '2']) {
         const p = m['İY/MS ' + a + '/' + b], rev = (a === '1' && b === '2') || (a === '2' && b === '1');
@@ -603,7 +604,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       let w = `Adil oran ${odd(show.p)}.`;
       if (typ === 'SÜRPRİZ' && base) w = `Bu ligde olağan sıklığı ${pct(base)}; bu maçta ${num(show.p / base)} kat daha olası. ` + w;
       if (pk && pk.locked) w += ` Karneye maçtan önceki son güncellemedeki (${trShort(pk.at)}) seçim olarak yazıldı.`;
-      else if (c.kickoff) w += ` Geçici: maç başlayana kadar her güncellemede yeniden hesaplanır; maçtan önceki son güncellemedeki seçim karneye yazılır.`;
+      else if (c.kickoff) w += c.state === 'pre' ? ` Geçici: maç başlayana kadar her güncellemede yeniden hesaplanır; maçtan önceki son güncellemedeki seçim karneye yazılır.` : ` Bu maç için karneye yazılmış bir seçim yok (maç başlamadan önce güncelleme yapılmamıştı).`;
       if (pk && pk.res) w += ` Sonuç: <b class="${pk.res === 'Tuttu' ? 'res-ok' : 'res-no'}">${esc(pk.res)}</b>.`;
       const bo = c.kickoff ? bestOdds(c, show.k) : null;
       if (bo) w += ` Şu an en iyi oran ${num(bo, 2)} (1 TL için ${(() => { const v = E.ev(show.p, 0, bo); return `<span class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${num(Math.abs(v), 2)} TL</span>`; })()}).`;
@@ -628,11 +629,11 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     return `${stand}
       <h3>Beklenen sayılar</h3>${sb}
       <h3>Sonuç olasılıkları</h3><div class="scroll">${res}</div>
-      <h3>İY/MS</h3><p class="note">Kırmızı çerçeveli hücreler dönüşler: 1/2 ve 2/1. Küçük sayı adil oran.</p>${g3}
+      ${HT ? `<h3>İY/MS</h3><p class="note">Kırmızı çerçeveli hücreler dönüşler: 1/2 ve 2/1. Küçük sayı adil oran.</p>${g3}` : `<h3>İlk yarı ve İY/MS</h3><p class="note">Bu ligin ücretsiz resmî verisinde devre skoru yok; ilk yarı, İY/MS ve İY skoru tahmini yapılamıyor. Maç sonu tahminleri tam.</p>`}
       <h3>Maç sonu skor</h3>${scores(c.r.ft_top, 8)}
-      <h3>İlk yarı skoru</h3>${scores(c.r.ht_top, 6)}
-      <h3>Alt / üst</h3><div class="cols"><div class="scroll">${goals}</div><div class="scroll">${goals1}</div></div>
-      <h3>Korner</h3>${d.exp_c === null ? '<p class="note">Bu ligin resmî verisinde korner sayısı tutulmuyor; korner tahmini yapılamıyor.</p>' : `<div class="cols"><div class="scroll">${corn}</div><div class="scroll">${corn1}</div></div>`}
+      ${HT ? `<h3>İlk yarı skoru</h3>${scores(c.r.ht_top, 6)}` : ''}
+      <h3>Alt / üst</h3>${HT ? `<div class="cols"><div class="scroll">${goals}</div><div class="scroll">${goals1}</div></div>` : `<div class="scroll">${goals}</div>`}
+      <h3>Korner</h3>${d.exp_c === null ? '<p class="note">Bu ligin ücretsiz resmî verisinde korner sayısı yok; korner tahmini yapılamıyor.</p>' : `<div class="cols"><div class="scroll">${corn}</div><div class="scroll">${corn1}</div></div>`}
       ${c.kickoff ? `<h3>Bahis oranları</h3>${oddsHTML(c)}` : ''}
       <h3>Banko ve sürpriz</h3>${picks}${ctx}
       <button class="btn" type="button" data-oran="${c.kickoff ? esc(c.fid) : 'c'}">Bu maçı oran hesabında aç</button>`;
@@ -775,13 +776,13 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     $('#ev-example').innerHTML = `<span class="note" style="margin:0">${bo ? 'Bu maçta 2,5 Üst için şu an bulunan en iyi oran' : 'Örnek: bir site 2,5 Üst için'} ${num(ex, 2)}. Model ${pct(p, 1)} diyor, yani adil oran ${odd(p)}. Beklenen değer ${num(p, 3)} × ${num(ex - 1, 2)} − ${num(1 - p, 3)} = <b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${num(Math.abs(v), 3)} TL</b> (1 TL başına). Sarı değil, gerçek oranlar bahis sitelerinden kendiliğinden doldurulur; boş kutulara kendi oranını yazabilirsin. Pozitif beklenen değer kesin kazanç değildir.</span>`;
     renderLine(); renderMargin();
   }
-  function totalsPmf(c, type) { if (type === 'g') return E.totalGoalsPmf(c.r.FT); if (type === 'g1') return E.totalGoalsPmf(c.r.M1); return type === 'c' ? c.r.pc : c.r.pc1; }
+  function totalsPmf(c, type) { if (type === 'g') return E.totalGoalsPmf(c.r.FT); if (type === 'g1') return c.L.ht === false ? null : E.totalGoalsPmf(c.r.M1); return type === 'c' ? c.r.pc : c.r.pc1; }
   function renderLine() {
     const c = evCtx(); if (!c) return;
     const line = parseFloat($('#ln-line').value.trim().replace(',', '.'));
     if (!isFinite(line) || line < 0 || Math.abs(line * 2 - Math.round(line * 2)) > 1e-9) { $('#ln-out').innerHTML = '<span class="note" style="margin:0">Çizgiyi tam sayı ya da buçuklu yaz (ör. 2, 2,5, 10).</span>'; return; }
     const pmf = totalsPmf(c, $('#ln-type').value);
-    if (!pmf) { $('#ln-out').innerHTML = '<span class="note" style="margin:0">Bu ligde korner verisi yok; gol çizgisi seç.</span>'; return; }
+    if (!pmf) { $('#ln-out').innerHTML = '<span class="note" style="margin:0">Bu ligde bu veri yok (devre skoru ya da korner tutulmuyor); maç sonu gol çizgisi seç.</span>'; return; }
     const lp = E.lineProbs(pmf, line);
     const side = $('#ln-side').value, w = side === 'o' ? lp.over : lp.under, l = side === 'o' ? lp.under : lp.over, pu = lp.push;
     const fair = w > 0 ? 1 + l / w : Infinity, o = E.parseOdds($('#ln-odds').value);
@@ -831,7 +832,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   function renderBacktest() {
     if (!BT.n) return;
     const NMS = NM();
-    $('#k-intro').textContent = `${BT.test_seasons.replace(', ', ' ve ')} sezonlarındaki ${thou(BT.n)} maç (${BT.n_leagues || ORDER.length} lig) modelin hiç görmediği test verisidir. Her maç yalnızca kendisinden önce oynanmış maçlarla ve o maçın maç öncesi Bet365 oranlarıyla tahmin edildi; ayarlar daha önceki ${BT.validation_seasons} sezonlarında seçilip donduruldu.${BT.stats_only ? ` Oranları hiç kullanmayan eski yöntemle bankolar %${num(100 * BT.stats_only.banko.hit, 1)} tutmuştu (şimdi %${num(100 * BT.banko.all.hit, 1)}).` : ''}`;
+    $('#k-intro').textContent = `${BT.test_seasons.replace(', ', ' ve ')} sezonlarındaki ${thou(BT.n)} maç (${BT.n_leagues || ORDER.length} lig) modelin hiç görmediği test verisidir. Her maç yalnızca kendisinden önce oynanmış maçlarla ve o maçın maç öncesi Bet365 oranlarıyla tahmin edildi; ayarlar daha önceki ${BT.validation_seasons} sezonlarında seçilip donduruldu.${BT.stats_only ? ` Oranları hiç kullanmayan eski yöntemle bankolar %${num(100 * BT.stats_only.banko.hit, 1)} tutmuştu (şimdi %${num(100 * BT.banko.all.hit, 1)}).` : ''}${BT.extra ? ` Yalnızca maç sonu verisi olan ${BT.extra.n_leagues} ek ligde ${BT.extra.test_season} ${thou(BT.extra.n)} maçta bankolar %${num(100 * BT.extra.banko.pred, 1)} dedi, %${num(100 * BT.extra.banko.hit, 1)} tuttu; sürprizler %${num(100 * BT.extra.surpriz.pred, 1)} dedi, %${num(100 * BT.extra.surpriz.hit, 1)} tuttu. Aşağıdaki tablolar ${BT.n_leagues || 22} ana lig içindir.` : ''}`;
     const S = BT.score;
     $('#k-tiles').innerHTML = `
       <div class="tile ok"><span>Banko isabeti</span><b>${pct(BT.banko.all.hit, 1)}</b><small>Model ${pct(BT.banko.all.pred, 1)} demişti · ${thou(BT.banko.all.n)} banko</small></div>
