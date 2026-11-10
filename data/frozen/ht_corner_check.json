@@ -1,0 +1,25 @@
+{
+ "n": 1551,
+ "actual_mean": 4.794970986460348,
+ "pred_mean": 4.8125785625546245,
+ "logloss_model": 2.2064819234110526,
+ "logloss_league_avg": 2.2169177359975003,
+ "mae_model": 1.7559194852218976,
+ "mae_league_avg": 1.7717495760213466,
+ "lines": {
+  "3.5 Üst": {
+   "actual": 0.6995486782720826,
+   "pred": 0.6968310712215634
+  },
+  "4.5 Üst": {
+   "actual": 0.533204384268214,
+   "pred": 0.520193379763851
+  },
+  "5.5 Üst": {
+   "actual": 0.33849129593810445,
+   "pred": 0.3523657144377665
+  }
+ },
+ "var_actual": 5.197935983028639,
+ "note": "share 0.47 was measured on these same matches; dispersion and team effects are out-of-sample"
+}
