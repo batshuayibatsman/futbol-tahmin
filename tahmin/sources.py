@@ -20,7 +20,6 @@ LEAGUES = {
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
 FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
-ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}-{d1}'
 ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}'
 ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
@@ -74,6 +73,9 @@ class Http:
                 req = urllib.request.Request(url, headers=h)
                 with urllib.request.urlopen(req, timeout=60) as r:
                     data = r.read(); hdr = {a.lower(): b for a, b in r.headers.items()}
+                if data[:2] == b'\x1f\x8b':
+                    import gzip
+                    data = gzip.decompress(data)
                 if len(data) < 20:
                     raise RuntimeError('boş yanıt')
                 tmp = path.with_suffix('.part'); tmp.write_bytes(data); tmp.replace(path)
@@ -87,7 +89,11 @@ class Http:
                     info['action'] = 'değişmedi'; self.log.append(info)
                     return path.read_bytes(), info
                 try:
-                    body = e.read()[:160].decode('utf-8', 'replace').replace('\n', ' ')
+                    raw = e.read()
+                    if raw[:2] == b'\x1f\x8b':
+                        import gzip
+                        raw = gzip.decompress(raw)
+                    body = raw[:160].decode('utf-8', 'replace').replace('\n', ' ')
                 except Exception:
                     body = ''
                 err = f'HTTP {e.code}' + (f' {body}' if body else '')

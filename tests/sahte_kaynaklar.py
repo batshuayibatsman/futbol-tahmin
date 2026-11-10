@@ -47,7 +47,7 @@ for k, r in enumerate(fx):
                         'B365>2.5': 1.85, 'B365<2.5': 1.95, 'Max>2.5': 1.93, 'Max<2.5': 2.02, 'Avg>2.5': 1.86, 'Avg<2.5': 1.94,
                         'AHh': -0.5 if ph > pa else 0.5, 'B365AHH': 1.95, 'B365AHA': 1.9, 'MaxAHH': 2.0, 'MaxAHA': 1.97, 'AvgAHH': 1.93, 'AvgAHA': 1.9})
 for d, e in ev.items():
-    (cache / f'espn_{d}_w0.bin').write_text(json.dumps({'events': e}))
+    (cache / f'espn_{d}_plain.bin').write_text(json.dumps({'events': e}))
 with open(cache / 'fd_fixtures.bin', 'w', newline='', encoding='utf-8') as f:
     w = csv.DictWriter(f, fieldnames=list(fd_rows[0].keys())); w.writeheader(); w.writerows(fd_rows)
 print('sahte akış:', {d: len(e) for d, e in ev.items()}, 'oranlı', len(fd_rows))

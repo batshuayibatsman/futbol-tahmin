@@ -117,51 +117,40 @@ def main():
     fd_fix_seen = state['http'].get('fd_fixtures', {}).get('ok')
 
     # ------------------------------------------------------------ 3. ESPN fixtures + live
-    # Three date windows per league: the near one (yesterday..+4 days) is refreshed every 10 minutes around matches,
-    # the later ones every 2-4 hours. If ESPN refuses date ranges, fall back to single days / the default scoreboard.
+    # ESPN refuses date ranges (HTTP 400), so per league: the default scoreboard (current/next matchday) plus
+    # yesterday, today and tomorrow by date. Refreshed every 10 minutes around matches, otherwise every 2 hours.
     hot = state.get('espn_hot', True)
-    day = lambda x: x.strftime('%Y%m%d')
-    wins = [('w0', now - dt.timedelta(days=2), now + dt.timedelta(days=4), ESPN_HOT_MIN if hot else ESPN_COLD_MIN),
-            ('w1', now + dt.timedelta(days=5), now + dt.timedelta(days=10), 120),
-            ('w2', now + dt.timedelta(days=11), now + dt.timedelta(days=AHEAD_DAYS), 240)]
+    iv = ESPN_HOT_MIN if hot else ESPN_COLD_MIN
+    days = [(now_tr.date() + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (-1, 0, 1)]
     espn, espn_ok, cors = {}, {}, state.get('espn_cors')
-    mode = state.get('espn_mode', 'range')
     origin = a.site_origin or 'https://example.github.io'
     diag = []
     for div in TARGET:
-        slug = S.LEAGUES[div]['espn']; evs_all = {}; got = False
-        for wk, w0, w1, iv in wins:
-            if mode == 'range':
-                url = S.ESPN.format(slug=slug, d0=day(w0), d1=day(w1))
-            elif mode == 'day':
-                if wk != 'w0':
-                    continue
-                url = S.ESPN_DAY.format(slug=slug, d0=day(now))
-            else:
-                if wk != 'w0':
-                    continue
-                url = S.ESPN_PLAIN.format(slug=slug)
-            b, info = http.get(f'espn_{div}_{wk}', url, iv, conditional=False)
+        slug = S.LEAGUES[div]['espn']; evs_all = {}; got = False; oks = []
+        reqs = [(f'espn_{div}_plain', S.ESPN_PLAIN.format(slug=slug))] + [(f'espn_{div}_{d}', S.ESPN_DAY.format(slug=slug, d0=d)) for d in days]
+        for key, url in reqs:
+            b, info = http.get(key, url, iv, conditional=False)
             if info.get('action') == 'hata':
-                diag.append(f'{div}/{wk}/{mode}: {info.get("error")}')
-                if mode == 'range' and wk == 'w0' and '400' in str(info.get('error')) and not a.offline:
-                    # try the other request shapes once and remember the first that works
-                    for m2, u2 in (('day', S.ESPN_DAY.format(slug=slug, d0=day(now))), ('plain', S.ESPN_PLAIN.format(slug=slug))):
-                        b2, i2 = http.get(f'espn_{div}_{m2}', u2, 0, conditional=False)
-                        diag.append(f'{div}/{m2}: {i2.get("action")} {i2.get("error") or ""}')
-                        if i2.get('action') == 'indirildi':
-                            state['espn_mode'] = mode = m2; b, info = b2, i2
-                            break
+                diag.append(f'{key}: {info.get("error")}')
             evs = S.parse_espn(b) if b else None
             if b and evs is None:
                 alert('UYARI', names[div], 'ESPN yanıtı okunamadı')
             for e in evs or []:
                 evs_all[e['id']] = e
             got = got or bool(b)
+            oks.append(state['http'].get(key, {}).get('ok') or 0)
         if not got:
             alert('UYARI', names[div], 'ESPN fikstür/canlı skor alınamadı; fikstür yalnızca football-data oran dosyasından')
         espn[div] = list(evs_all.values())
-        espn_ok[div] = max([(state['http'].get(f'espn_{div}_{k}', {}).get('ok') or 0) for k in ('w0', 'w1', 'w2', 'day', 'plain')]) or None
+        espn_ok[div] = max(oks) or None
+    # forget per-day cache entries older than three days
+    keep = set(days)
+    for k in [k for k in state.get('http', {}) if k.startswith('espn_') and k[-8:].isdigit() and k[-8:] not in keep]:
+        state['http'].pop(k, None)
+        try:
+            (CACHE / 'http' / (k + '.bin')).unlink()
+        except OSError:
+            pass
     # browser-side live scores are possible only if ESPN allows cross-origin reads: check once a day
     b, info = http.get('espn_cors', S.ESPN_PLAIN.format(slug='eng.1'), 1440, conditional=False, headers={'Origin': origin})
     if info.get('action') == 'indirildi':
@@ -356,7 +345,7 @@ def main():
     sources = {
         'football-data': {'ok': ts(max([hs.get(f'fd_{code}_{d}', {}).get('ok') or 0 for d in TARGET]) or None), 'son_mac': {d: leagues[d]['last_match'] for d in TARGET}},
         'oranlar': {'ok': ts(hs.get('fd_fixtures', {}).get('ok')), 'mac_sayisi': len([f for f in fixtures if f.get('odds')])},
-        'espn': {'ok': ts(max([espn_ok.get(d) or 0 for d in TARGET]) or None), 'cors': bool(cors), 'mod': state.get('espn_mode', 'range')},
+        'espn': {'ok': ts(max([espn_ok.get(d) or 0 for d in TARGET]) or None), 'cors': bool(cors)},
         'odds_api': {'aktif': bool(key), 'kalan': oa.get('remaining'), 'bu_ay': oa.get('used_this_month', 0)},
     }
     data = {
