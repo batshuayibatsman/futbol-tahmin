@@ -3,6 +3,12 @@ import numpy as np, pandas as pd
 from model import pois_vec, match_distribution, summarize, nb_pmf_vec, corner_mean, apply_htft_cal, MAXG
 
 
+def has_corners(r):
+    """Corner markets exist only for leagues whose results include corner counts (not e.g. the National League)."""
+    v=(r.ch,r.ca,r.c_avg)
+    return all(x is not None and x==x for x in v)
+
+
 def predict_all(T,cal):
     """Per-match probabilities for every market (walk-forward means + frozen calibration)."""
     n=MAXG+1; out=[]
@@ -28,11 +34,12 @@ def predict_all(T,cal):
         fl=np.argsort(-FT.ravel())[:3]; d['top3']=[(int(k//(2*n-1)),int(k%(2*n-1))) for k in fl]
         hl=np.argsort(-M1.ravel())[:3]; d['httop3']=[(int(k//n),int(k%n)) for k in hl]
         d['exp_g']=float((TOT*FT).sum()); d['exp_g1']=float(((I1+J1)*M1).sum())
-        mc=corner_mean(r.ch,r.ca,r.c_avg,cal['c_beta']); pc=nb_pmf_vec(mc,cal['nb_k'])
-        d['exp_c']=mc; d['exp_c1']=mc*cal['c1_share']
-        pc1=nb_pmf_vec(mc*cal['c1_share'],cal['nb_k'])
-        for L in (3.5,4.5,5.5): d[f'hco{L}']=pc1[int(L+.5):].sum()
-        for L in (7.5,8.5,9.5,10.5,11.5,12.5): d[f'co{L}']=pc[int(L+.5):].sum()
-        d['p_ctot']=pc[int(r.hc+r.ac)] if (r.hc+r.ac)<=40 else 1e-12
+        if has_corners(r):
+            mc=corner_mean(r.ch,r.ca,r.c_avg,cal['c_beta']); pc=nb_pmf_vec(mc,cal['nb_k'])
+            d['exp_c']=mc; d['exp_c1']=mc*cal['c1_share']
+            pc1=nb_pmf_vec(mc*cal['c1_share'],cal['nb_k'])
+            for L in (3.5,4.5,5.5): d[f'hco{L}']=pc1[int(L+.5):].sum()
+            for L in (7.5,8.5,9.5,10.5,11.5,12.5): d[f'co{L}']=pc[int(L+.5):].sum()
+            if r.hc==r.hc and r.ac==r.ac: d['p_ctot']=pc[int(r.hc+r.ac)] if (r.hc+r.ac)<=40 else 1e-12
         out.append(d)
     return pd.DataFrame(out).set_index('i')

@@ -1,9 +1,10 @@
 {
- "tahmin/config.py": "3f5685218d176f58f2103df024db02f8a931f3b122b81c005f7954ea4c857006",
- "tahmin/model.py": "f09031c80fd7f94661d6d21fe2b0d9b616714e14389d67f6a70483cb0cc06b8c",
- "tahmin/probs.py": "a0829901d1b22fd1b4e651636ccde6579cf9c3acf93e44a6ed500795c3412ed5",
- "tahmin/markets.py": "95c2472fdb23a0bf42b67993a318592df5264a9b9cbbcd546415ece7d1df25cb",
- "site/engine.js": "5afb7a7ea5011f4ff2a913170c90e59e9d6e0c2a31b8668cb9e8aec3e601fb4e",
- "data/frozen/cal_val.json": "41e206c0e1c88130cf216a63b1f9b2d6fde458052ba089b2a356899c07007480",
- "data/frozen/base_rates.json": "f3c36ecc9aafa9cbd51a92bc8c936249a4459fff8cda6b82e640cb26c80547ee"
+ "tahmin/config.py": "29b1dad7499d3ebcd39e13a0992cc6d020bc0160eeb6f36443cb8db4c4911219",
+ "tahmin/model.py": "c665af49b07b0f8e0e799aba140a33b806d1b423518520e9ce80e0c08382a387",
+ "tahmin/probs.py": "6d0cfa7936ad9357d91950d3dca5827424a317247146534a8fdfbd440cc79480",
+ "tahmin/markets.py": "0422c8253ca1048310cba6909a3d80146b18ad937c1085b5026a5f72fd22a7b2",
+ "tahmin/market.py": "7ab778ea352e85edeba3aafb06497fa71f5d57a98fa58792b0457df6132f9759",
+ "site/engine.js": "bcc0a9782968f8c628af2be5437bd85bd30d459cc8ce0765102b5c30549dd341",
+ "data/frozen/cal_val.json": "52083d515fd13bc740315d88fcf6e3d37da32c214d864fc7bfbde0604c1ac6fa",
+ "data/frozen/base_rates.json": "971f2fe41439a3ff26070c72ce37c754a9790ce7bdafadfbb8da668622768a64"
 }

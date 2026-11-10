@@ -1,4 +1,4 @@
-"""Scheduled job (GitHub Actions): fetch -> validate -> fit -> predict -> lock / settle picks -> build the site.
+"""Update job (GitHub Actions, started only on request): fetch -> validate -> fit -> predict -> record / settle picks -> build the site.
 The public page never triggers any of this; it only reads the files this job publishes.
     python tahmin/pipeline.py              normal run (respects cache intervals)
     python tahmin/pipeline.py --force      ignore cache intervals (manual "refresh everything")
@@ -11,16 +11,17 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 import numpy as np, pandas as pd
-from config import CFG, TARGET
+from config import CFG, TARGET, ODDS_BLEND
 from model import LeagueFitter, predict_means, match_distribution, summarize, apply_htft_cal
 from probs import predict_all
 from markets import (market_probs, pick_banko, pick_surprise, BANKO_MENU, BANKO_MIN, BANKO_MAX,
                      SURPRISE_MENU, SURPRISE_MIN_P, SURPRISE_MIN_LIFT)
 from stats import match_facts
 import sources as S
-from names import build_map, display
+from names import build_map, display, DISPLAY
+from market import odds_means
 from dataset import load as load_dataset
-from picks import PickLog, LOCK_HOURS
+from picks import PickLog
 
 TR = ZoneInfo('Europe/Istanbul'); UK = ZoneInfo('Europe/London'); UTC = dt.timezone.utc
 CACHE = ROOT / '.cache'; SITE = ROOT / '_site'; STATE = ROOT / 'state'; FROZEN = ROOT / 'data' / 'frozen'
@@ -106,6 +107,19 @@ def main():
                 pd.DataFrame(rejected).to_csv(snap.with_name(f'{div}_reddedilen.csv'), index=False)
                 alert('UYARI', names[div], f'{len(rejected)} satır okunamadı (tarih geçersiz/gelecekte); {snap.parent.name}/{div}_reddedilen.csv dosyasına yazıldı')
         fd_status[div] = state['http'].get(f'fd_{code}_{div}', {})
+    # seasons missing from the archive mirror: downloaded once, then kept in data/seasons/<code>/
+    for bc, divs in S.BACKFILL.items():
+        for div in divs:
+            snap = ROOT / 'data' / 'seasons' / bc / f'{div}.csv'
+            if div not in TARGET or snap.exists():
+                continue
+            b, info = http.get(f'fd_{bc}_{div}', S.FD_SEASON.format(code=bc, div=div), 10 ** 7)
+            rows, rejected = S.parse_fd_season(div, b, today, []) if b else (None, [])
+            if rows:
+                snap.parent.mkdir(parents=True, exist_ok=True)
+                pd.DataFrame(rows, columns=S.STD).to_csv(snap, index=False)
+            elif not a.offline:
+                alert('BİLGİ', names[div], f'{bc} arşiv sezonu indirilemedi; model mevcut arşivle çalıştı')
 
     # ------------------------------------------------------------ 2. football-data fixtures (odds)
     uk = now.astimezone(UK)
@@ -134,6 +148,9 @@ def main():
     days = set()
     for div in TARGET:
         slug = S.LEAGUES[div]['espn']; evs_all = {}; got = False; oks = []
+        if not slug:                      # ESPN does not keep this league current: fixtures come from football-data only
+            espn[div] = []; espn_ok[div] = None
+            continue
         b, info = http.get(f'espn_{div}_plain', S.ESPN_PLAIN.format(slug=slug), iv, conditional=False)
         espn_cal = S.espn_calendar(b) if b else None
         if b:
@@ -190,7 +207,7 @@ def main():
     oddsapi = {}
     if key and not a.offline:
         remaining = oa.get('remaining')
-        for div in TARGET:
+        for div in [d for d in TARGET if S.LEAGUES[d].get('odds')]:
             soon = [e for e in espn[div] if e['state'] == 'pre' and e['kickoff'] and 0 < (dt.datetime.fromisoformat(e['kickoff']) - now).total_seconds() / 3600 <= ODDS_AHEAD_H]
             soon += [f for f in fd_fix if f['div'] == div and 0 < (dt.datetime.fromisoformat(f['kickoff']) - now).total_seconds() / 3600 <= ODDS_AHEAD_H]
             last = oa.setdefault('last', {}).get(div, 0)
@@ -210,10 +227,12 @@ def main():
                 oddsapi[div] = S.parse_oddsapi(p.read_bytes()) or []
 
     # ------------------------------------------------------------ 6. per league: fit, fixtures, predictions
-    pre = jload(STATE / 'pre_kickoff.json', {})
+    pre = {k: v for k, v in jload(STATE / 'pre_kickoff.json', {}).items() if k.count('|') == 4}   # v1 ids (no date) are dropped
+    shown = jload(STATE / 'takim_adlari.json', {})            # ESPN's full club names (football-data uses short forms)
     log = PickLog(str(STATE))
-    leagues, fixtures, unmapped, espn_map = {}, [], {}, {}
+    leagues, fixtures, unmapped, espn_map, parity = {}, [], {}, {}, []
     hot_next = False
+    fnum = lambda x: None if x is None or x != x else float(x)
     for div in TARGET:
         df = D[D['div'] == div]
         cur = df[(df.season == SEASON)]
@@ -227,6 +246,11 @@ def main():
         if un:
             unmapped[div] = [ext[u][0] for u in un]
             alert('UYARI', names[div], 'ESPN takım adı eşleşmedi: ' + ', '.join(unmapped[div]) + ' (bu maçlar atlandı)')
+        sh = shown.setdefault(div, {})
+        for eid, c in mp.items():
+            if ext[eid] and ext[eid][0]:
+                sh[c] = ext[eid][0]
+        disp = lambda t: DISPLAY.get(t) or sh.get(t) or display(t)
         # odds api names
         oa_ev = oddsapi.get(div, [])
         if oa_ev:
@@ -248,36 +272,43 @@ def main():
             k = (f['home'], f['away'])
             if f['home'] not in canon or f['away'] not in canon:
                 alert('UYARI', names[div], f'oran dosyasında bilinmeyen takım: {f["home"]} - {f["away"]}'); continue
+            if k in fx and abs((dt.datetime.fromisoformat(fx[k]['kickoff']) - dt.datetime.fromisoformat(f['kickoff'])).total_seconds()) > 2 * 86400:
+                k = k + (f['kickoff'][:10],)          # same pairing on another date (leagues where clubs meet 3-4 times)
             fx.setdefault(k, {'kickoff': f['kickoff']})['fd'] = f
         for e in oa_ev:
             k = (omp.get(e['home']), omp.get(e['away']))
             if k in fx:
                 fx[k]['oa'] = e
-        ex_teams = {t for k in fx for t in k}
+        ex_teams = {t for k in fx for t in k[:2]}
         fitter = LeagueFitter(df, CFG)
         fit = fitter.fit(cutoff, SEASON, extra_teams=sorted(ex_teams))
+        has_c = fit['cmu'] is not None
         C = df[(df.season == SEASON) & df.fit_ok]
         teams = sorted(set(C.home) | set(C.away) | ex_teams)
         tab = []
         for t in teams:
             hh = C[C.home == t]; aa = C[C.away == t]
             w = int((hh.hg > hh.ag).sum() + (aa.ag > aa.hg).sum()); dr = int((hh.hg == hh.ag).sum() + (aa.ag == aa.hg).sum()); n = len(hh) + len(aa)
-            tab.append(dict(team=t, name=display(t), o=n, g=w, b=dr, m=n - w - dr, a=int(hh.hg.sum() + aa.ag.sum()), y=int(hh.ag.sum() + aa.hg.sum()), p=3 * w + dr))
+            tab.append(dict(team=t, name=disp(t), o=n, g=w, b=dr, m=n - w - dr, a=int(hh.hg.sum() + aa.ag.sum()), y=int(hh.ag.sum() + aa.hg.sum()), p=3 * w + dr))
         tab.sort(key=lambda r: (-r['p'], -(r['a'] - r['y']), -r['a'], r['team']))
         rank = {r['team']: i + 1 for i, r in enumerate(tab)}
         last_match = str(C.date.max().date()) if len(C) else None
-        leagues[div] = dict(name=names[div], mu=float(fit['mu']), gamma=float(fit['gamma']), cmu=float(fit['cmu']), cgamma=float(fit['cgamma']),
-                            c_avg=float(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']), played=int(len(C)), last_match=last_match,
+        LG = S.LEAGUES[div]
+        leagues[div] = dict(name=names[div], short=LG['short'], country=LG['country'], corners=has_c,
+                            mu=float(fit['mu']), gamma=float(fit['gamma']), cmu=fnum(fit['cmu']), cgamma=fnum(fit['cgamma']),
+                            c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']), played=int(len(C)), last_match=last_match,
                             round=f'{int(round(2 * len(C) / max(len(teams), 1))) + 1}. hafta' if len(C) else '1. hafta',
                             base=base_all.get(div, {}), table=tab,
-                            teams=[dict(id=t, name=display(t), rank=rank[t], new=bool(fit['new'][fit['idx'][t]]),
+                            teams=[dict(id=t, name=disp(t), rank=rank[t], new=bool(fit['new'][fit['idx'][t]]),
                                         att=float(fit['att'][fit['idx'][t]]), de=float(fit['de'][fit['idx'][t]]),
-                                        catt=float(fit['catt'][fit['idx'][t]]), cde=float(fit['cde'][fit['idx'][t]])) for t in teams])
+                                        catt=fnum(fit['catt'][fit['idx'][t]]) if has_c else None,
+                                        cde=fnum(fit['cde'][fit['idx'][t]]) if has_c else None) for t in teams])
         in_season = today.month >= 8 or today.month <= 5
         if in_season and last_match and (today - dt.date.fromisoformat(last_match)).days > 16:
             alert('UYARI', names[div], f'football-data sonuçları bayat olabilir: son maç {last_match}')
         H = df[df.fit_ok]
-        for (h, aw), src in sorted(fx.items(), key=lambda kv: (kv[1]['kickoff'], kv[0])):
+        for key, src in sorted(fx.items(), key=lambda kv: (kv[1]['kickoff'], kv[0])):
+            h, aw = key[0], key[1]
             ko = dt.datetime.fromisoformat(src['kickoff']).astimezone(UTC)
             if not (now - dt.timedelta(hours=36) <= ko <= now + dt.timedelta(days=AHEAD_DAYS)):
                 continue
@@ -288,77 +319,89 @@ def main():
             postponed = bool(e and (e.get('status_name') or '').upper() in ('STATUS_POSTPONED', 'STATUS_CANCELED', 'STATUS_SUSPENDED', 'STATUS_ABANDONED'))
             if st in ('in',) or (st == 'pre' and ko - now <= dt.timedelta(hours=1)) or (now - dt.timedelta(hours=3) <= ko <= now):
                 hot_next = True
-            fid = f'{SEASON}|{div}|{h}|{aw}'
+            fid = f'{SEASON}|{div}|{h}|{aw}|{ko:%Y-%m-%d}'     # date included: in some leagues the same pairing is played twice
             ko_tr = ko.astimezone(TR)
-            f = {'fid': fid, 'div': div, 'season': SEASON, 'home': h, 'away': aw, 'home_name': display(h), 'away_name': display(aw),
+            f = {'fid': fid, 'div': div, 'season': SEASON, 'home': h, 'away': aw, 'home_name': disp(h), 'away_name': disp(aw),
                  'kickoff': ko.isoformat(), 'date_tr': ko_tr.strftime('%Y-%m-%d'), 'time_tr': ko_tr.strftime('%H:%M'),
-                 'state': 'postponed' if postponed else st, 'base': leagues[div]['base']}
+                 'state': 'postponed' if postponed else st}
             if e:
                 f['live'] = {k: e.get(k) for k in ('hs', 'as', 'hht', 'aht', 'hc', 'ac', 'clock', 'detail', 'completed', 'period')}
                 f['espn_id'] = e['id']
-                if e.get('odds'):
-                    f['espn_odds'] = e['odds']
-            # odds: football-data (B365, Pinnacle, best, average) and The Odds API (best, average across more books)
-            odds = {}
+            # odds: ESPN (DraftKings, Bet365; read at every update), football-data (Bet365, Pinnacle, best, average),
+            # The Odds API (best, average across more books)
+            odds, srcs = {}, []
             if src.get('fd') and src['fd'].get('odds'):
-                odds.update(src['fd']['odds']); odds['_source'] = 'football-data.co.uk'; odds['_seen'] = dt.datetime.fromtimestamp(fd_fix_seen or time.time(), UTC).isoformat(timespec='seconds')
+                odds.update(src['fd']['odds']); srcs.append('football-data.co.uk')
+            if e and e.get('odds'):
+                odds.update(e['odds']); srcs.append('ESPN')
             if src.get('oa') and src['oa'].get('books'):
                 sm = S.summarize_books(src['oa']['books'])
                 for k in ('max', 'avg', 'pin'):
                     if sm.get(k):
                         odds.setdefault(k, {}).update(sm[k])
-                odds['_source'] = (odds.get('_source', '') + ' + The Odds API').strip(' +'); odds['n_books'] = sm['n_books']
-                odds['_seen'] = dt.datetime.fromtimestamp(oa.get('last', {}).get(div, time.time()), UTC).isoformat(timespec='seconds')
+                odds['n_books'] = sm['n_books']; srcs.append('The Odds API')
+            if odds:
+                odds['_source'] = ' + '.join(srcs); odds['_seen'] = now.isoformat(timespec='seconds')
             f['odds'] = odds or None
             in_pre = fid in pre
             if f['state'] == 'pre' and ko > now:
                 lh, la, ch, ca = predict_means(fit, h, aw)
-                inputs = dict(lh=float(lh), la=float(la), ch=float(ch), ca=float(ca), c_avg=float(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']))
-                facts = match_facts(C, H, h, aw, display(h), display(aw), cutoff)
-                newp = {'inputs': inputs, 'facts': facts, 'kickoff': f['kickoff'], 'odds_last': f['odds'] or (pre.get(fid, {}).get('odds_last'))}
+                fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
+                inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
+                              lh_model=float(lh), la_model=float(la))
+                facts = match_facts(C, H, h, aw, disp(h), disp(aw), cutoff)
+                basis = 'güncel'
+            elif in_pre:
+                inputs, facts = pre[fid]['inputs'], pre[fid].get('facts', [])
+                oinfo = pre[fid].get('odds_basis')
+                f['odds_last'] = pre[fid].get('odds_last')
+                basis = 'maç öncesi'
+            else:
+                lh, la, ch, ca = predict_means(fit, h, aw)
+                fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
+                inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
+                              lh_model=float(lh), la_model=float(la))
+                facts = []
+                basis = 'maç başladıktan sonra hesaplandı'
+            f['pred_basis'] = basis
+            X = pd.DataFrame([dict({k: inputs.get(k) for k in ('lh', 'la', 'ch', 'ca', 'c_avg', 's1h', 's1a')}, hg=0, ag=0, hthg=0, htag=0, hc=0, ac=0)])
+            q = predict_all(X, cal).iloc[0].to_dict()
+            m = market_probs(q)
+            base = leagues[div]['base']
+            bk = pick_banko(m); sp = pick_surprise(m, base)
+            f['pred'] = {'inputs': inputs, 'banko': list(bk) if bk else None, 'surpriz': list(sp) if sp else None,
+                         'exp_g': float(q['exp_g']), 'exp_g1': float(q['exp_g1']), 'exp_c': fnum(q.get('exp_c')), 'exp_c1': fnum(q.get('exp_c1')),
+                         'odds_basis': oinfo}
+            parity.append({'div': div, 'inputs': inputs, 'markets': {k: float(v) for k, v in m.items()}, 'banko': f['pred']['banko'], 'surpriz': f['pred']['surpriz']})
+            if basis == 'güncel':
+                newp = {'inputs': inputs, 'facts': facts, 'kickoff': f['kickoff'], 'odds_last': f['odds'] or (pre.get(fid, {}).get('odds_last')),
+                        'odds_basis': oinfo, 'home_name': f['home_name'], 'away_name': f['away_name'],
+                        'picks': {'BANKO': list(bk) if bk else None, 'SÜRPRİZ': (list(sp) + [base.get(sp[0])]) if sp else None}}
                 old = pre.get(fid, {})
                 strip = lambda d: {k: ({x: y for x, y in v.items() if x != '_seen'} if k == 'odds_last' and isinstance(v, dict) else v) for k, v in d.items()}
                 if strip({k: old.get(k) for k in newp}) != strip(newp):      # rewrite only when something changed (quiet git history)
                     pre[fid] = dict(newp, saved=now.isoformat(timespec='seconds'))
-                f['pred_basis'] = 'güncel'
-            elif in_pre:
-                inputs, facts = pre[fid]['inputs'], pre[fid].get('facts', [])
-                f['odds_last'] = pre[fid].get('odds_last')
-                f['pred_basis'] = 'maç öncesi'
-            else:
-                lh, la, ch, ca = predict_means(fit, h, aw)
-                inputs = dict(lh=float(lh), la=float(la), ch=float(ch), ca=float(ca), c_avg=float(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']))
-                facts = []
-                f['pred_basis'] = 'maç başladıktan sonra hesaplandı'
-            X = pd.DataFrame([dict(inputs, hg=0, ag=0, hthg=0, htag=0, hc=0, ac=0)])
-            q = predict_all(X, cal).iloc[0].to_dict()
-            m = market_probs(q)
-            bk = pick_banko(m); sp = pick_surprise(m, leagues[div]['base'])
-            f['pred'] = {'inputs': inputs, 'markets': {k: float(v) for k, v in m.items()}, 'banko': list(bk) if bk else None,
-                         'surpriz': list(sp) if sp else None, 'exp_g': float(q['exp_g']), 'exp_g1': float(q['exp_g1']),
-                         'exp_c': float(q['exp_c']), 'exp_c1': float(q['exp_c1'])}
             f['facts'] = facts
             f['rank_h'] = rank.get(h); f['rank_a'] = rank.get(aw)
             fixtures.append(f)
+    jdump(shown, STATE / 'takim_adlari.json')
 
-    # prune pre-kickoff cache: keep only fixtures from the last 10 days
-    pre = {k: v for k, v in pre.items() if dt.datetime.fromisoformat(v['kickoff']) > now - dt.timedelta(days=10)}
-    jdump(pre, STATE / 'pre_kickoff.json')
-    state['espn_hot'] = hot_next
-
-    # ------------------------------------------------------------ 7. picks: lock, odds, settle, performance
-    locked = log.lock(fixtures, now, names)
-    log.observe_odds(fixtures, now)
+    # ------------------------------------------------------------ 7. picks: record the last pre-match pick, settle, performance
+    recorded = log.finalize(pre, fixtures, now, names)
     settled = log.settle(D, now)
     perf, T = log.performance(now)
+    done = log.recorded_fids()
     for f in fixtures:
         lk = log.locked_for(f['fid'])
         f['locked'] = [{'tur': p['tur'], 'pazar': p['pazar'], 'olasilik': float(p['olasilik']), 'kilit_utc': p['kilit_utc']} for p in lk]
-        f['lock_due'] = (dt.datetime.fromisoformat(f['kickoff']) - dt.timedelta(hours=LOCK_HOURS)).isoformat()
         if f.get('locked'):
             ids = [p['id'] for p in lk]
             rr = T[T.id.isin(ids)][['tur', 'durum']].dropna()
             f['settled'] = dict(zip(rr.tur, rr.durum))
+    # keep pre-match snapshots for 10 days (30 while a match is still unrecorded, e.g. postponed)
+    pre = {k: v for k, v in pre.items() if dt.datetime.fromisoformat(v['kickoff']) > now - dt.timedelta(days=10 if k in done else 30)}
+    jdump(pre, STATE / 'pre_kickoff.json')
+    state['espn_hot'] = hot_next
 
     # ------------------------------------------------------------ 8. site payload
     def ts(x):
@@ -366,17 +409,19 @@ def main():
     hs = state.get('http', {})
     sources = {
         'football-data': {'ok': ts(max([hs.get(f'fd_{code}_{d}', {}).get('ok') or 0 for d in TARGET]) or None), 'son_mac': {d: leagues[d]['last_match'] for d in TARGET}},
-        'oranlar': {'ok': ts(hs.get('fd_fixtures', {}).get('ok')), 'mac_sayisi': len([f for f in fixtures if f.get('odds')])},
-        'espn': {'ok': ts(max([espn_ok.get(d) or 0 for d in TARGET]) or None), 'cors': bool(cors)},
+        'oranlar': {'ok': ts(hs.get('fd_fixtures', {}).get('ok')), 'mac_sayisi': len([f for f in fixtures if f.get('odds')]),
+                    'orana_dayali': len([f for f in fixtures if (f.get('pred') or {}).get('odds_basis')])},
+        'espn': {'ok': ts(max([espn_ok.get(d) or 0 for d in TARGET]) or None), 'cors': bool(cors),
+                 'ligsiz': [d for d in TARGET if not S.LEAGUES[d]['espn']]},
         'odds_api': {'aktif': bool(key), 'kalan': oa.get('remaining'), 'bu_ay': oa.get('used_this_month', 0)},
     }
     data = {
-        'meta': {'generated': now.isoformat(timespec='seconds'), 'cutoff': str(today), 'model': CFG, 'cal': cal, 'lock_hours': LOCK_HOURS,
+        'meta': {'generated': now.isoformat(timespec='seconds'), 'cutoff': str(today), 'model': CFG, 'cal': cal, 'odds_blend': ODDS_BLEND,
                  'rules': {'banko_menu': BANKO_MENU, 'banko_min': BANKO_MIN, 'banko_max': BANKO_MAX, 'surprise_menu': SURPRISE_MENU,
                            'surprise_min_p': SURPRISE_MIN_P, 'surprise_min_lift': SURPRISE_MIN_LIFT},
-                 'sources': sources, 'alerts': alerts, 'espn_slugs': {d: S.LEAGUES[d]['espn'] for d in TARGET},
+                 'sources': sources, 'alerts': alerts, 'espn_slugs': {d: S.LEAGUES[d]['espn'] for d in TARGET if S.LEAGUES[d]['espn']},
                  'espn_map': espn_map, 'order': TARGET, 'ahead_days': AHEAD_DAYS,
-                 'new_rows': log.new_rows, 'locked_now': len(locked), 'settled_now': len(settled)},
+                 'new_rows': log.new_rows, 'recorded_now': len(recorded), 'settled_now': len(settled)},
         'leagues': leagues, 'fixtures': fixtures, 'track': perf,
         'backtest': jload(FROZEN / 'backtest.json', {}), 'ht_corner': jload(FROZEN / 'ht_corner_check.json', {}),
         'audit': {'rows_in': audit['rows_in'], 'rows_out': audit['rows_out'], 'fit_rows': audit['fit_rows'], 'issues': audit['issues']},
@@ -396,8 +441,7 @@ def main():
         except Exception as ex:
             alert('BİLGİ', 'Excel', f'takip dosyası üretilemedi: {ex}')
     # parity reference for site/parity_test.js (not published)
-    par = [{'div': f['div'], 'inputs': f['pred']['inputs'], 'markets': f['pred']['markets'], 'banko': f['pred']['banko'], 'surpriz': f['pred']['surpriz']} for f in fixtures]
-    jdump({'meta': data['meta'], 'leagues': {d: {'base': leagues[d]['base']} for d in leagues}, 'fixtures': par}, CACHE / 'parity.json')
+    jdump({'meta': data['meta'], 'leagues': {d: {'base': leagues[d]['base']} for d in leagues}, 'fixtures': parity}, CACHE / 'parity.json')
 
     # ------------------------------------------------------------ 9. change detection for deploy
     core = json.dumps({k: v for k, v in data.items() if k != 'meta'}, sort_keys=True, default=_jdef, ensure_ascii=False)
@@ -414,8 +458,9 @@ def main():
     acts = {}
     for x in http.log:
         acts[x['action']] = acts.get(x['action'], 0) + 1
-    print(f'[{now_tr:%Y-%m-%d %H:%M} TSİ] istekler: {acts} | maç: {len(fixtures)} (oranlı {sources["oranlar"]["mac_sayisi"]}) | '
-          f'kilitlenen: {len(locked)} | sonuçlanan: {len(settled)} | ESPN CORS: {cors} | yayın: {deploy}')
+    print(f'[{now_tr:%Y-%m-%d %H:%M} TSİ] istekler: {acts} | maç: {len(fixtures)} (oranlı {sources["oranlar"]["mac_sayisi"]}, '
+          f'tahmini orana dayalı {sources["oranlar"]["orana_dayali"]}) | kayda geçen seçim: {len(recorded)} | sonuçlanan: {len(settled)} | '
+          f'ESPN CORS: {cors} | yayın: {deploy}')
     for x in http.log:
         if x['action'] in ('indirildi', 'hata', 'değişmedi', 'sınır'):
             print('  ', x['action'], x['key'], x.get('bytes', ''), x.get('error', ''), x.get('headers', ''))

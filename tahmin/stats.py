@@ -45,8 +45,9 @@ def facts_for_team(C, t, name, L, venue):
     if k / n > L['fts']:
         out.append((zb(k, n, L['fts']), f'{name}: {n} maçta {k} kez gol atamadı', t))
     cf, ca = R.cf.mean(), R.ca.mean()
-    out.append((abs(z(cf, L['cpm'], L['csd'], n)), f'{name}: maç başına {fmt(cf)} korner kullanıyor (lig ort. {fmt(L["cpm"])})', t))
-    out.append((abs(z(ca, L['cpm'], L['csd'], n)) * 0.9, f'{name}: rakiplerine maç başına {fmt(ca)} korner veriyor (lig ort. {fmt(L["cpm"])})', t))
+    if cf == cf and ca == ca and L['cpm'] == L['cpm']:          # leagues without corner statistics have none
+        out.append((abs(z(cf, L['cpm'], L['csd'], n)), f'{name}: maç başına {fmt(cf)} korner kullanıyor (lig ort. {fmt(L["cpm"])})', t))
+        out.append((abs(z(ca, L['cpm'], L['csd'], n)) * 0.9, f'{name}: rakiplerine maç başına {fmt(ca)} korner veriyor (lig ort. {fmt(L["cpm"])})', t))
     G = int((R.gf + R.ga).sum()); G1 = int((R.gf1 + R.ga1).sum())
     if G >= 12:
         out.append((abs(zb(G1, G, L['s1'])), f'{name} maçlarındaki goller: ilk yarı {G1}, ikinci yarı {G - G1}', t))

@@ -1,10 +1,16 @@
-# Frozen model configuration (chosen on validation seasons 2021-22..2023-24 only; see tune.py)
+# Frozen model configuration. v1 (team strengths) was chosen on validation seasons 2021-22..2023-24 only (see tune.py);
+# v2 (Kasım 2026) extends it to 22 leagues and lets bookmaker odds set the goal means (research/v2/blend.py).
 CFG=dict(window_days=1460,
          hl_goals=365, kappa_goals=10,
          hl_corners=240, kappa_corners=40,
          new_att_goals=-0.22, new_def_goals=-0.13,     # promoted-club prior (175 promoted team-seasons 2010-2020)
          new_att_corners=-0.09, new_def_corners=-0.08)
-TOP=['T1','E0','SP1','I1','D1','F1','N1','P1']        # leagues used for validation/calibration
-TARGET=['T1','E0','SP1','I1','D1','F1']               # leagues served in the page
+# leagues served in the page, in display order (all have full-time + half-time scores; all but EC have corners)
+TARGET=['T1','E0','SP1','I1','D1','F1','N1','P1','B1','G1','SC0',
+        'E1','SP2','I2','D2','F2','E2','E3','EC','SC1','SC2','SC3']
+TOP=TARGET                                            # v2: validation/calibration on every served league
 VAL=[2021,2022,2023]; TEST=[2024,2025]
 CORNER_1H_SHARE=0.470   # StatsBomb open data, 1,551 matches (2015/16 big-5): 46.98% of corners come before half-time
+# Weight of the odds-implied goal means (1 = odds only). Chosen on 2021-23: the exact-score log-likelihood was best
+# at 1.0 for both the strength ratio (wr) and the goal total (wt); on 2024-26 it beat the statistics model in all 22 leagues.
+ODDS_BLEND=dict(wr=1.0, wt=1.0)

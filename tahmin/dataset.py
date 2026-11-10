@@ -45,13 +45,14 @@ def load(root, today):
                                 'örnek': D.loc[htft, ['div', 'date', 'home', 'away']].astype(str).values.tolist()[:5]})
         D.loc[htft, ['hthg', 'htag']] = np.nan
     D['has_ft'] = D.hg.notna() & D.ag.notna()
-    D['fit_ok'] = D[NUM].notna().all(axis=1)
+    D['fit_ok'] = D.has_ft & D.hthg.notna() & D.htag.notna()          # goals model
+    D['fit_c'] = D.fit_ok & D.hc.notna() & D.ac.notna()                # corners model (not every league records corners)
     nf = ~D.has_ft
     if nf.any():
         audit['issues'].append({'tür': 'skor yok', 'n': int(nf.sum()), 'işlem': 'modelden çıkarıldı'})
     aw = D.has_ft & ~D.fit_ok
     if aw.any():
-        audit['issues'].append({'tür': 'devre skoru/korner eksik (hükmen ya da eksik istatistik)', 'n': int(aw.sum()), 'işlem': 'tutuldu, modelde kullanılmadı',
+        audit['issues'].append({'tür': 'devre skoru eksik (hükmen ya da eksik istatistik)', 'n': int(aw.sum()), 'işlem': 'tutuldu, modelde kullanılmadı',
                                 'örnek': D.loc[aw & (D.date >= '2025-07-01'), ['div', 'date', 'home', 'away']].astype(str).values.tolist()[:5]})
     D = D[D.has_ft].sort_values(['date', 'div', 'home'], kind='stable').reset_index(drop=True)
     audit['rows_out'] = int(len(D))

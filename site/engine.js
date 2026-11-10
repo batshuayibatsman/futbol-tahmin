@@ -1,4 +1,5 @@
-/* Tahmin motoru – JavaScript port of model.py / calibrate.py / markets.py (probability layer).
+/* Tahmin motoru – JavaScript port of model.py / probs.py / markets.py (probability layer).
+   The goal means in each fixture's inputs already include the bookmaker odds (market.py, Python side).
    Deterministic: no random numbers. Parity with the Python reference is checked by parity_test.js. */
 (function (root) {
   'use strict';
@@ -77,6 +78,7 @@
   function cornerMean(ch, ca, cavg, beta) { return Math.pow(cavg, 1 - beta) * Math.pow(ch + ca, beta); }
 
   const CELLS = ['11', '1X', '12', 'X1', 'XX', 'X2', '21', '2X', '22'];
+  const hasNum = x => x !== null && x !== undefined && x === x;
 
   function rawProbs(lh, la, ch, ca, cavg, s1h, s1a, cal) {
     const { M1, M2, S } = matchDistribution(lh, la, s1h, s1a, cal);
@@ -97,11 +99,14 @@
     const lab = '1X2';
     for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) d['hf' + lab[a] + lab[b]] = htft[a][b];
     d.exp_g = eg; d.exp_g1 = eg1;
-    const mc = cornerMean(ch, ca, cavg, cal.c_beta);
-    const pc = nbPmf(mc, cal.nb_k), pc1 = nbPmf(mc * cal.c1_share, cal.nb_k);
-    d.exp_c = mc; d.exp_c1 = mc * cal.c1_share;
-    for (const L of [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]) d['co' + L] = tail(pc, Math.round(L + 0.5));
-    for (const L of [3.5, 4.5, 5.5]) d['hco' + L] = tail(pc1, Math.round(L + 0.5));
+    let pc = null, pc1 = null;
+    if (hasNum(ch) && hasNum(ca) && hasNum(cavg)) {          // leagues without corner statistics have no corner markets
+      const mc = cornerMean(ch, ca, cavg, cal.c_beta);
+      pc = nbPmf(mc, cal.nb_k); pc1 = nbPmf(mc * cal.c1_share, cal.nb_k);
+      d.exp_c = mc; d.exp_c1 = mc * cal.c1_share;
+      for (const L of [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]) d['co' + L] = tail(pc, Math.round(L + 0.5));
+      for (const L of [3.5, 4.5, 5.5]) d['hco' + L] = tail(pc1, Math.round(L + 0.5));
+    } else { d.exp_c = null; d.exp_c1 = null; }
     // top scores (stable: probability desc, then row-major index asc)
     const ft = []; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) ft.push([i, j, FT[i][j], i * N + j]);
     ft.sort((x, y) => (y[2] - x[2]) || (x[3] - y[3]));
@@ -121,8 +126,10 @@
       'İY 2.5 Üst': d['ho2.5'], 'İY 2.5 Alt': 1 - d['ho2.5'],
     };
     for (const L of ['1.5', '2.5', '3.5', '4.5']) { m[L + ' Üst'] = d['o' + L]; m[L + ' Alt'] = 1 - d['o' + L]; }
-    for (const L of ['7.5', '8.5', '9.5', '10.5', '11.5', '12.5']) { m['Korner ' + L + ' Üst'] = d['co' + L]; m['Korner ' + L + ' Alt'] = 1 - d['co' + L]; }
-    for (const L of ['3.5', '4.5', '5.5']) { m['İY Korner ' + L + ' Üst'] = d['hco' + L]; m['İY Korner ' + L + ' Alt'] = 1 - d['hco' + L]; }
+    if (hasNum(d['co7.5'])) {
+      for (const L of ['7.5', '8.5', '9.5', '10.5', '11.5', '12.5']) { m['Korner ' + L + ' Üst'] = d['co' + L]; m['Korner ' + L + ' Alt'] = 1 - d['co' + L]; }
+      for (const L of ['3.5', '4.5', '5.5']) if (hasNum(d['hco' + L])) { m['İY Korner ' + L + ' Üst'] = d['hco' + L]; m['İY Korner ' + L + ' Alt'] = 1 - d['hco' + L]; }
+    }
     for (const c of CELLS) m['İY/MS ' + c[0] + '/' + c[1]] = d['hf' + c];
     if (d.p1 < d.p2) m['Sürpriz MS 1'] = d.p1; else m['Sürpriz MS 2'] = d.p2;
     return m;
@@ -173,9 +180,10 @@
     return { home: side(1, oddsHome), away: side(-1, oddsAway) };
   }
   function teamMeans(L, h, a) {
+    const c = hasNum(L.cmu) && hasNum(h.catt) && hasNum(a.catt);
     return {
       lh: Math.exp(L.mu + L.gamma + h.att - a.de), la: Math.exp(L.mu + a.att - h.de),
-      ch: Math.exp(L.cmu + L.cgamma + h.catt - a.cde), ca: Math.exp(L.cmu + a.catt - h.cde),
+      ch: c ? Math.exp(L.cmu + L.cgamma + h.catt - a.cde) : null, ca: c ? Math.exp(L.cmu + a.catt - h.cde) : null,
     };
   }
   function predict(L, h, a, meta) {

@@ -53,10 +53,12 @@ class LeagueFitter:
     def fit(self, cutoff, season, extra_teams=()):
         cfg = self.cfg
         d = self.df
-        m = d[(d.date < cutoff) & (d.date >= cutoff - pd.Timedelta(days=cfg['window_days'])) & d.fit_ok]
+        win = d[(d.date < cutoff) & (d.date >= cutoff - pd.Timedelta(days=cfg['window_days']))]
+        m = win[win.fit_ok]                                        # goals: full-time + half-time score
+        mc = win[win.fit_c] if 'fit_c' in win.columns else m       # corners: rows that also have corner counts
         # teams: everything in the window plus the clubs of the current season (and fixture-only clubs, e.g. at season start)
         cur = self.df[(self.df.season == season)]
-        teams = sorted(set(m.home) | set(m.away) | set(cur.home) | set(cur.away) | set(extra_teams))
+        teams = sorted(set(m.home) | set(m.away) | set(mc.home) | set(mc.away) | set(cur.home) | set(cur.away) | set(extra_teams))
         idx = {t: i for i, t in enumerate(teams)}
         n = len(teams)
         prev = self.teams_by_season.get(season - 1, set())
@@ -77,14 +79,20 @@ class LeagueFitter:
         # league first-half share of goals (home / away), same weights
         out['s1_h'] = float((w * m.hthg.values).sum() / max((w * m.hg.values).sum(), 1e-9))
         out['s1_a'] = float((w * m.htag.values).sum() / max((w * m.ag.values).sum(), 1e-9))
-        # ---- corners
-        wc = np.exp(-LN2 * age / cfg['hl_corners'])
-        pm_a = np.where(new, cfg['new_att_corners'], 0.0); pm_d = np.where(new, cfg['new_def_corners'], 0.0)
-        cmu, cg, catt, cde, pc = fit_strengths(hi, ai, m.hc.values, m.ac.values, wc, n, pm_a, pm_d, cfg['kappa_corners'],
-                                               self._x0c if warm else None)
-        self._x0c = pc
-        out.update(cmu=cmu, cgamma=cg, catt=catt, cde=cde)
-        out['c_avg'] = float((wc * (m.hc.values + m.ac.values)).sum() / wc.sum())
+        # ---- corners (only where the league records them: at least half of the window's matches and 200 rows)
+        if len(mc) >= max(200, 0.5 * len(m)):
+            hic = mc.home.map(idx).values; aic = mc.away.map(idx).values
+            agec = (cutoff - mc.date).dt.days.values.astype(float)
+            wc = np.exp(-LN2 * agec / cfg['hl_corners'])
+            pm_a = np.where(new, cfg['new_att_corners'], 0.0); pm_d = np.where(new, cfg['new_def_corners'], 0.0)
+            cmu, cg, catt, cde, pc = fit_strengths(hic, aic, mc.hc.values, mc.ac.values, wc, n, pm_a, pm_d, cfg['kappa_corners'],
+                                                   self._x0c if (warm and self._x0c is not None) else None)
+            self._x0c = pc
+            out.update(cmu=cmu, cgamma=cg, catt=catt, cde=cde)
+            out['c_avg'] = float((wc * (mc.hc.values + mc.ac.values)).sum() / wc.sum())
+        else:
+            self._x0c = None
+            out.update(cmu=None, cgamma=None, catt=None, cde=None, c_avg=None)
         self._teams_prev = teams
         return out
 
@@ -93,6 +101,8 @@ def predict_means(fit, home, away):
     i = fit['idx'][home]; j = fit['idx'][away]
     lh = np.exp(fit['mu'] + fit['gamma'] + fit['att'][i] - fit['de'][j])
     la = np.exp(fit['mu'] + fit['att'][j] - fit['de'][i])
+    if fit['cmu'] is None:                       # league without corner statistics
+        return lh, la, float('nan'), float('nan')
     ch = np.exp(fit['cmu'] + fit['cgamma'] + fit['catt'][i] - fit['cde'][j])
     ca = np.exp(fit['cmu'] + fit['catt'][j] - fit['cde'][i])
     return lh, la, ch, ca
@@ -112,7 +122,7 @@ def walk_forward(df_div, cfg, seasons, refit_gap_days=3):
                 fit = fitter.fit(date, s); last_fit = date
             for r in blk.itertuples():
                 lh, la, ch, ca = predict_means(fit, r.home, r.away)
-                rows.append((r.Index, lh, la, ch, ca, fit['c_avg'], fit['s1_h'], fit['s1_a'],
+                rows.append((r.Index, lh, la, ch, ca, fit['c_avg'] if fit['c_avg'] is not None else float('nan'), fit['s1_h'], fit['s1_a'],
                              bool(fit['new'][fit['idx'][r.home]]), bool(fit['new'][fit['idx'][r.away]]), fit['eff_n']))
     P = pd.DataFrame(rows, columns=['i', 'lh', 'la', 'ch', 'ca', 'c_avg', 's1h', 's1a', 'new_h', 'new_a', 'eff_n']).set_index('i')
     return d.join(P, how='inner')

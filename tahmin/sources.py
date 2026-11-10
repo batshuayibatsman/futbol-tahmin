@@ -11,12 +11,29 @@ UTC = dt.timezone.utc
 UA = 'futbol-tahmin/1.0 (kisisel tahmin sitesi; GitHub Actions)'
 
 LEAGUES = {
-    'T1': {'name': 'Süper Lig', 'espn': 'tur.1', 'odds': 'soccer_turkey_super_league'},
-    'E0': {'name': 'Premier Lig', 'espn': 'eng.1', 'odds': 'soccer_epl'},
-    'SP1': {'name': 'La Liga', 'espn': 'esp.1', 'odds': 'soccer_spain_la_liga'},
-    'I1': {'name': 'Serie A', 'espn': 'ita.1', 'odds': 'soccer_italy_serie_a'},
-    'D1': {'name': 'Bundesliga', 'espn': 'ger.1', 'odds': 'soccer_germany_bundesliga'},
-    'F1': {'name': 'Ligue 1', 'espn': 'fra.1', 'odds': 'soccer_france_ligue_one'},
+    # name: unique label (alerts, pick log); short + country: what the page shows. espn None = ESPN feed not current.
+    'T1': {'name': 'Süper Lig', 'short': 'Süper Lig', 'country': 'Türkiye', 'espn': 'tur.1', 'odds': 'soccer_turkey_super_league'},
+    'E0': {'name': 'Premier Lig', 'short': 'Premier Lig', 'country': 'İngiltere', 'espn': 'eng.1', 'odds': 'soccer_epl'},
+    'E1': {'name': 'Championship', 'short': 'Championship', 'country': 'İngiltere', 'espn': 'eng.2', 'odds': 'soccer_efl_champ'},
+    'E2': {'name': 'League One', 'short': 'League One', 'country': 'İngiltere', 'espn': 'eng.3', 'odds': 'soccer_england_league1'},
+    'E3': {'name': 'League Two', 'short': 'League Two', 'country': 'İngiltere', 'espn': 'eng.4', 'odds': 'soccer_england_league2'},
+    'EC': {'name': 'National League', 'short': 'National League', 'country': 'İngiltere', 'espn': 'eng.5', 'odds': None},
+    'SC0': {'name': 'İskoçya Premiership', 'short': 'Premiership', 'country': 'İskoçya', 'espn': 'sco.1', 'odds': 'soccer_spl'},
+    'SC1': {'name': 'İskoçya Championship', 'short': 'Championship', 'country': 'İskoçya', 'espn': 'sco.2', 'odds': None},
+    'SC2': {'name': 'İskoçya League One', 'short': 'League One', 'country': 'İskoçya', 'espn': None, 'odds': None},
+    'SC3': {'name': 'İskoçya League Two', 'short': 'League Two', 'country': 'İskoçya', 'espn': None, 'odds': None},
+    'SP1': {'name': 'La Liga', 'short': 'La Liga', 'country': 'İspanya', 'espn': 'esp.1', 'odds': 'soccer_spain_la_liga'},
+    'SP2': {'name': 'La Liga 2', 'short': 'La Liga 2', 'country': 'İspanya', 'espn': 'esp.2', 'odds': 'soccer_spain_segunda_division'},
+    'I1': {'name': 'Serie A', 'short': 'Serie A', 'country': 'İtalya', 'espn': 'ita.1', 'odds': 'soccer_italy_serie_a'},
+    'I2': {'name': 'Serie B', 'short': 'Serie B', 'country': 'İtalya', 'espn': 'ita.2', 'odds': 'soccer_italy_serie_b'},
+    'D1': {'name': 'Bundesliga', 'short': 'Bundesliga', 'country': 'Almanya', 'espn': 'ger.1', 'odds': 'soccer_germany_bundesliga'},
+    'D2': {'name': '2. Bundesliga', 'short': '2. Bundesliga', 'country': 'Almanya', 'espn': 'ger.2', 'odds': 'soccer_germany_bundesliga2'},
+    'F1': {'name': 'Ligue 1', 'short': 'Ligue 1', 'country': 'Fransa', 'espn': 'fra.1', 'odds': 'soccer_france_ligue_one'},
+    'F2': {'name': 'Ligue 2', 'short': 'Ligue 2', 'country': 'Fransa', 'espn': 'fra.2', 'odds': 'soccer_france_ligue_two'},
+    'N1': {'name': 'Eredivisie', 'short': 'Eredivisie', 'country': 'Hollanda', 'espn': 'ned.1', 'odds': 'soccer_netherlands_eredivisie'},
+    'B1': {'name': 'Belçika Pro League', 'short': 'Pro League', 'country': 'Belçika', 'espn': 'bel.1', 'odds': 'soccer_belgium_first_div'},
+    'P1': {'name': 'Liga Portugal', 'short': 'Liga Portugal', 'country': 'Portekiz', 'espn': 'por.1', 'odds': 'soccer_portugal_primeira_liga'},
+    'G1': {'name': 'Yunanistan Süper Ligi', 'short': 'Süper Lig', 'country': 'Yunanistan', 'espn': 'gre.1', 'odds': 'soccer_greece_super_league'},
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
 FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
@@ -24,8 +41,11 @@ ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboa
 ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
 # Updates run only on request and with --force every source is re-checked, so one run must fit a full refresh:
-# football-data up to 13 files (two seasons in Jul-Sep + fixtures), ESPN 6 scoreboards + every match date in 16 days.
-PER_RUN_CAP = {'football-data.co.uk': 20, 'site.api.espn.com': 150, 'api.the-odds-api.com': 6}
+# football-data up to 45 files (22 leagues, two seasons in Jul-Sep, fixtures), ESPN 20 scoreboards + every match date in 16 days.
+PER_RUN_CAP = {'football-data.co.uk': 60, 'site.api.espn.com': 400, 'api.the-odds-api.com': 6}
+# season files missing from the archive mirror (whole or partial seasons inside the 4-year window): fetched once,
+# kept in data/seasons/<code>/ and committed, never downloaded again
+BACKFILL = {'2223': ['G1'], '2324': ['G1'], '2425': ['G1', 'EC', 'SC0', 'SC1', 'SC2', 'SC3', 'T1']}
 
 
 def now_utc():
@@ -261,15 +281,7 @@ def parse_espn(b):
             except (TypeError, ValueError, AttributeError):
                 return None
         h, a = side['home'], side['away']
-        odds = None
-        for o in comp.get('odds') or []:
-            try:
-                odds = {'provider': (o.get('provider') or {}).get('name'), 'ml1': (o.get('homeTeamOdds') or {}).get('moneyLine'),
-                        'mlx': (o.get('drawOdds') or {}).get('moneyLine'), 'ml2': (o.get('awayTeamOdds') or {}).get('moneyLine'),
-                        'ou': o.get('overUnder')}
-                break
-            except AttributeError:
-                pass
+        odds = espn_odds(comp)
         ko = _iso(ev.get('date') or comp.get('date'))
         ev_out.append({'id': str(ev.get('id')), 'kickoff': ko.isoformat() if ko else None, 'state': ty.get('state'), 'completed': bool(ty.get('completed')),
                        'status_name': ty.get('name'), 'detail': ty.get('shortDetail') or ty.get('detail'), 'clock': st.get('displayClock'),
@@ -277,6 +289,67 @@ def parse_espn(b):
                        'hs': score(h), 'as': score(a), 'hht': half(h), 'aht': half(a),
                        'hc': stat(h, 'wonCorners'), 'ac': stat(a, 'wonCorners'), 'odds': odds})
     return ev_out
+
+
+def _american(v):
+    """American odds ('-250', '+390', 390, 'EVEN') -> decimal."""
+    if v is None:
+        return None
+    t = str(v).strip().upper()
+    if t in ('EVEN', 'EV'):
+        return 2.0
+    try:
+        x = float(t.replace('+', ''))
+    except ValueError:
+        return None
+    if abs(x) < 100:
+        return None
+    return round(1 + x / 100, 4) if x > 0 else round(1 + 100 / abs(x), 4)
+
+
+def espn_odds(comp):
+    """Bookmaker prices ESPN shows with a match, as decimal odds:
+    'dk' (DraftKings: 1X2 and the total-goals line with over/under), 'b365e' (Bet365: 1X2)."""
+    out = {}
+    for o in comp.get('odds') or []:
+        if not isinstance(o, dict):
+            continue
+        prov = ((o.get('provider') or {}).get('name') or '').lower()
+        key = 'dk' if 'draftkings' in prov else ('b365e' if '365' in prov else None)
+        if not key or key in out:
+            continue
+        def last(x):
+            x = x or {}
+            return ((x.get('close') or {}).get('odds')) or ((x.get('open') or {}).get('odds'))
+        v = {}
+        ml = o.get('moneyline') or {}
+        for s_, k in (('home', '1'), ('draw', 'X'), ('away', '2')):
+            d = _american(last(ml.get(s_)))
+            if d:
+                v[k] = d
+        for s_, k in (('homeTeamOdds', '1'), ('drawOdds', 'X'), ('awayTeamOdds', '2')):
+            x = o.get(s_) or {}
+            if k not in v:
+                try:
+                    d = float(x.get('value')) if x.get('value') is not None else _american(x.get('moneyLine'))
+                except (TypeError, ValueError):
+                    d = None
+                if d and d > 1:
+                    v[k] = round(d, 4)
+        tot = o.get('total') or {}
+        ov, un = _american(last(tot.get('over'))), _american(last(tot.get('under')))
+        line = o.get('overUnder')
+        try:
+            cl = ((tot.get('over') or {}).get('close') or {}).get('line') or ''
+            if cl[:1] in 'oO':
+                line = float(cl[1:])
+        except (TypeError, ValueError):
+            pass
+        if ov and un and line is not None:
+            v.update(line=float(line), **{'Ü': ov, 'A': un, f'Ü{float(line):g}': ov, f'A{float(line):g}': un})
+        if v:
+            out[key] = v
+    return out or None
 
 
 def espn_calendar(b):

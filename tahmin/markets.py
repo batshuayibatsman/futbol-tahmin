@@ -5,6 +5,10 @@ import numpy as np
 CELLS = [a + b for a in '1X2' for b in '1X2']
 
 
+def _num(x):
+    return x is not None and x == x
+
+
 def market_probs(d):
     """d: mapping with the raw probability columns produced by calibrate.predict_all."""
     m = {
@@ -18,11 +22,12 @@ def market_probs(d):
     }
     for L in (1.5, 2.5, 3.5, 4.5):
         m[f'{L} Üst'] = d[f'o{L}']; m[f'{L} Alt'] = 1 - d[f'o{L}']
-    for L in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5):
-        m[f'Korner {L} Üst'] = d[f'co{L}']; m[f'Korner {L} Alt'] = 1 - d[f'co{L}']
-    for L in (3.5, 4.5, 5.5):
-        if f'hco{L}' in d:
-            m[f'İY Korner {L} Üst'] = d[f'hco{L}']; m[f'İY Korner {L} Alt'] = 1 - d[f'hco{L}']
+    if _num(d.get('co7.5')):                       # leagues without corner statistics have no corner markets
+        for L in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5):
+            m[f'Korner {L} Üst'] = d[f'co{L}']; m[f'Korner {L} Alt'] = 1 - d[f'co{L}']
+        for L in (3.5, 4.5, 5.5):
+            if _num(d.get(f'hco{L}')):
+                m[f'İY Korner {L} Üst'] = d[f'hco{L}']; m[f'İY Korner {L} Alt'] = 1 - d[f'hco{L}']
     for c in CELLS:
         m[f'İY/MS {c[0]}/{c[1]}'] = d['hf' + c]
     # underdog wins (only defined for the side with the lower win probability)
@@ -34,7 +39,7 @@ def market_probs(d):
 
 
 def market_outcomes(hg, ag, hthg, htag, hc, ac, p1=None, p2=None):
-    tg = hg + ag; t1 = hthg + htag; ct = hc + ac
+    tg = hg + ag; t1 = hthg + htag; ct = (hc + ac) if (_num(hc) and _num(ac)) else None
     ht = '1' if hthg > htag else ('X' if hthg == htag else '2')
     ft = '1' if hg > ag else ('X' if hg == ag else '2')
     o = {'MS 1': ft == '1', 'MS X': ft == 'X', 'MS 2': ft == '2',
@@ -45,8 +50,9 @@ def market_outcomes(hg, ag, hthg, htag, hc, ac, p1=None, p2=None):
         o[f'İY {L} Üst'] = t1 > L; o[f'İY {L} Alt'] = t1 < L
     for L in (1.5, 2.5, 3.5, 4.5):
         o[f'{L} Üst'] = tg > L; o[f'{L} Alt'] = tg < L
-    for L in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5):
-        o[f'Korner {L} Üst'] = ct > L; o[f'Korner {L} Alt'] = ct < L
+    if _num(hc) and _num(ac):
+        for L in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5):
+            o[f'Korner {L} Üst'] = ct > L; o[f'Korner {L} Alt'] = ct < L
     for c in CELLS:
         o[f'İY/MS {c[0]}/{c[1]}'] = (ht + ft) == c
     if p1 is not None:

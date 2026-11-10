@@ -1,11 +1,12 @@
-"""Formula lock: the scheduled job refuses to publish if a prediction-formula file changed without approval.
+"""Formula lock: the update job refuses to publish if a prediction-formula file changed without approval.
     python tahmin/lock.py check      (run by the workflow)
     python tahmin/lock.py approve "neden"   (after re-running the backtest in research/; records the change)"""
 import hashlib, json, sys, datetime as dt
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FILES = ['tahmin/config.py', 'tahmin/model.py', 'tahmin/probs.py', 'tahmin/markets.py', 'site/engine.js', 'data/frozen/cal_val.json', 'data/frozen/base_rates.json']
+FILES = ['tahmin/config.py', 'tahmin/model.py', 'tahmin/probs.py', 'tahmin/markets.py', 'tahmin/market.py', 'site/engine.js',
+         'data/frozen/cal_val.json', 'data/frozen/base_rates.json']
 
 
 def digest():

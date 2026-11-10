@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 
 F = 'Arial'; TR = ZoneInfo('Europe/Istanbul')
 HDR = PatternFill('solid', fgColor='1F2A24'); thin = Side(style='thin', color='C9D1C8')
-COLS = [('No', 5), ('Kilit (TSİ)', 16), ('Lig', 11), ('Maç tarihi', 11), ('Saat', 7), ('Ev sahibi', 17), ('Deplasman', 17), ('Tür', 9),
+COLS = [('No', 5), ('Son tahmin (TSİ)', 16), ('Lig', 11), ('Maç tarihi', 11), ('Saat', 7), ('Ev sahibi', 17), ('Deplasman', 17), ('Tür', 9),
         ('Pazar', 15), ('Model olasılığı', 10), ('Adil oran', 8), ('Olağan sıklık', 9), ('Bet365', 8), ('En iyi oran', 9), ('Sonuç', 13),
         ('Skor (İY)', 10), ('Korner', 7), ('Net Bet365', 9), ('Net en iyi', 9), ('Kümülatif (en iyi)', 10), ('Zirve', 8), ('Düşüş', 8)]
 
@@ -59,7 +59,7 @@ def build(T, path, perf):
     for c in 'BCD':
         S.column_dimensions[c].width = 13
     S['A1'] = 'Canlı takip özeti'; S['A1'].font = Font(name=F, size=14, bold=True)
-    S['A2'] = (f'Kayıttan formülle hesaplanır. Her seçim maçtan 48 saat önce kilitlenir; hiçbir satır silinmez. '
+    S['A2'] = (f'Kayıttan formülle hesaplanır. Her satır, maçtan önceki son güncellemede sitede görünen seçimdir; hiçbir satır silinmez. '
                f'Oluşturulma: {dt.datetime.now(TR):%d.%m.%Y %H:%M} TSİ')
     S['A2'].font = Font(name=F, size=9, italic=True, color='555555')
     last = max(n + 1, 2)
@@ -67,7 +67,7 @@ def build(T, path, perf):
     S['A4'], S['B4'], S['C4'], S['D4'] = 'Ölçü', 'Tümü', 'BANKO', 'SÜRPRİZ'
     def f3(a, t):
         return [a, t.replace('#T', '"BANKO"'), t.replace('#T', '"SÜRPRİZ"')]
-    rows = [('Kilitlenen seçim', f'=COUNTA(Kayıt!$I$2:$I${last})', f'=COUNTIF({Ty},#T)'),
+    rows = [('Karnedeki seçim', f'=COUNTA(Kayıt!$I$2:$I${last})', f'=COUNTIF({Ty},#T)'),
             ('Tuttu', f'=COUNTIF({Rs},"Tuttu")', f'=COUNTIFS({Ty},#T,{Rs},"Tuttu")'),
             ('Tutmadı', f'=COUNTIF({Rs},"Tutmadı")', f'=COUNTIFS({Ty},#T,{Rs},"Tutmadı")'),
             ('Bekliyor / doğrulanamadı', f'=B5-B6-B7', None)]
@@ -101,7 +101,7 @@ def build(T, path, perf):
         S[f'{c}9'].number_format = '0.0%'; S[f'{c}10'].number_format = '0.0%'; S[f'{c}15'].number_format = '0.0%'
         S[f'{c}13'].number_format = '+0.00;-0.00;0.00'; S[f'{c}14'].number_format = '+0.00;-0.00;0.00'
     S['B16'].number_format = '0.00'
-    notes = ['Oranlar: seçim kilitlendikten sonra görülen ilk fiyatlar (football-data.co.uk; varsa The Odds API). Korner, İY ve çifte şans için ücretsiz oran yok: bu seçimler isabete sayılır, birime sayılmaz.',
+    notes = ['Oranlar: maçtan önceki son güncellemede görülen fiyatlar (ESPN: DraftKings, Bet365; football-data.co.uk; varsa The Odds API). Korner, İY ve çifte şans için ücretsiz oran yok: bu seçimler isabete sayılır, birime sayılmaz.',
              'Sonuçlar football-data.co.uk resmî maç istatistiklerinden (devre skoru, maç sonu, korner) otomatik işlenir.',
              'Bu dosya her güncellemede yeniden üretilir; elle yapılan değişiklikler saklanmaz. Kaynak: depodaki state/picks.csv, odds.csv, results.csv.']
     for k, t in enumerate(notes):
