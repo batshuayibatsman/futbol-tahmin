@@ -315,8 +315,11 @@ def main():
                 lh, la, ch, ca = predict_means(fit, h, aw)
                 inputs = dict(lh=float(lh), la=float(la), ch=float(ch), ca=float(ca), c_avg=float(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']))
                 facts = match_facts(C, H, h, aw, display(h), display(aw), cutoff)
-                pre[fid] = {'inputs': inputs, 'saved': now.isoformat(timespec='seconds'), 'facts': facts, 'kickoff': f['kickoff'],
-                            'odds_last': f['odds'] or (pre.get(fid, {}).get('odds_last'))}
+                newp = {'inputs': inputs, 'facts': facts, 'kickoff': f['kickoff'], 'odds_last': f['odds'] or (pre.get(fid, {}).get('odds_last'))}
+                old = pre.get(fid, {})
+                strip = lambda d: {k: ({x: y for x, y in v.items() if x != '_seen'} if k == 'odds_last' and isinstance(v, dict) else v) for k, v in d.items()}
+                if strip({k: old.get(k) for k in newp}) != strip(newp):      # rewrite only when something changed (quiet git history)
+                    pre[fid] = dict(newp, saved=now.isoformat(timespec='seconds'))
                 f['pred_basis'] = 'güncel'
             elif in_pre:
                 inputs, facts = pre[fid]['inputs'], pre[fid].get('facts', [])
