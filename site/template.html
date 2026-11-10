@@ -139,6 +139,17 @@ table{border-collapse:collapse;width:100%}
 .box .w{font-size:12.5px;color:var(--muted)}
 ul.facts{margin:4px 0 0;padding-left:18px;display:grid;gap:3px}
 .btn{font:600 14px/1 var(--body);padding:10px 14px;border-radius:8px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;justify-self:start;margin-top:10px}
+.btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line)}
+.upd{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:10px 0 4px}
+.upd .btn{margin:0;display:inline-flex;align-items:center;gap:8px;font-size:15px;padding:11px 16px}
+.upd .btn[disabled]{opacity:.6;cursor:wait}
+#upd-st{font-size:13px;color:var(--muted);flex:1 1 12em}
+#upd-panel{margin:8px 0 12px;display:grid;gap:10px}
+#upd-panel ol{margin:0;padding-left:1.3em;display:grid;gap:4px;font-size:14px}
+#upd-panel a{color:var(--ink);font-weight:600}
+#upd-panel .row{display:flex;gap:8px;flex-wrap:wrap}
+#upd-panel .row input{flex:1 1 14em}
+#upd-panel .row .btn{margin:0}
 .form{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr));margin:8px 0 6px}
 @media (max-width:560px){.form{grid-template-columns:1fr}}
 .form label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
@@ -197,6 +208,23 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     <span class="eyebrow" id="hdr-eyebrow">Futbol tahmin bülteni</span>
     <h1 id="hdr-title">Canlı <span class="thin">bülten</span></h1>
     <p class="stamp" id="hdr-stamp"></p>
+    <div class="upd"><button class="btn" id="upd-btn" type="button">↻ Verileri güncelle</button><span id="upd-st" role="status" aria-live="polite"></span></div>
+    <div class="panel" id="upd-panel" hidden>
+      <b>Güncellemeyi başlat</b>
+      <p class="note" style="margin:0">Site GitHub'da çalışır; güncellemeyi yalnızca deponun sahibi başlatabilir. Üç yol var:</p>
+      <div><b>1. GitHub'da başlat (kurulum yok).</b> <a id="upd-gh" href="#" target="_blank" rel="noopener">Bu bağlantıyı aç</a>, sonra “Run workflow” → yeşil “Run workflow” düğmesine bas. GitHub'a giriş yapmış olman gerekir.</div>
+      <div><b>2. Bu düğmeyle tek dokunuşta (bir kez kurulur).</b>
+        <ol>
+          <li><a href="https://github.com/settings/personal-access-tokens/new?name=futbol-tahmin-guncelle" target="_blank" rel="noopener">GitHub'da yeni anahtar sayfasını aç</a>.</li>
+          <li><i>Repository access</i>: <b>Only select repositories</b> → <b>futbol-tahmin</b>.</li>
+          <li><i>Permissions</i> → <i>Repository permissions</i> → <b>Actions: Read and write</b>. Başka izin verme.</li>
+          <li><b>Generate token</b>'a bas, çıkan anahtarı kopyala ve aşağıya yapıştır.</li>
+        </ol>
+        <div class="row" style="margin-top:8px"><input id="upd-tok" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="GitHub anahtarı"><button class="btn" id="upd-save" type="button">Kaydet ve güncelle</button></div>
+        <p class="note" style="margin:6px 0 0">Anahtar yalnızca bu cihazın tarayıcısında saklanır; siteye ya da depoya yazılmaz. Yalnızca bu depoda güncelleme başlatabilir. <a href="#" id="upd-del">Anahtarı bu cihazdan sil</a></p>
+      </div>
+      <div><b>3. Claude'a “güncelle” yaz.</b></div>
+    </div>
     <div class="fresh" id="hdr-fresh" aria-label="Veri kaynaklarının durumu"></div>
   </header>
   <nav class="tabs" role="tablist" aria-label="Bölümler">
@@ -448,7 +476,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       $('#hdr-title').innerHTML = (a.m === b.m ? (a.d === b.d ? `${a.d} ${MONL[a.m]}` : `${a.d}–${b.d} ${MONL[b.m]}`) : `${a.d} ${MON[a.m]} – ${b.d} ${MON[b.m]}`) + ' <span class="thin">bülteni</span>';
     } else $('#hdr-title').innerHTML = 'Canlı <span class="thin">bülten</span>';
     const lastPlayed = Object.values(LG).map(l => l.last_match).filter(Boolean).sort().slice(-1)[0];
-    $('#hdr-stamp').textContent = `Son güncelleme ${trShort(META.generated)} (${ago(META.generated)}); yalnızca sen istediğinde güncellenir. Model, ${longDate(lastPlayed)} tarihine kadar oynanan maçlarla kuruldu. Model rastgelelik içermez: aynı veriyle her zaman aynı sayıları verir. Saatler Türkiye saatidir.`;
+    $('#hdr-stamp').textContent = `Son güncelleme ${trShort(META.generated)} (${ago(META.generated)}); yalnızca “Verileri güncelle” ile istediğinde güncellenir. Model, ${longDate(lastPlayed)} tarihine kadar oynanan maçlarla kuruldu. Model rastgelelik içermez: aynı veriyle her zaman aynı sayıları verir. Saatler Türkiye saatidir.`;
     const S = META.sources, pills = [];
     const pill = (lab, iso, okHours) => { const h = iso ? (Date.now() - Date.parse(iso)) / 3600e3 : 1e9; return `<span class="fp ${h <= okHours ? '' : (h <= okHours * 4 ? 'warn' : 'bad')}"><i></i>${lab}: ${ago(iso)}</span>`; };
     pills.push(pill('Sonuçlar', S['football-data'].ok, 24));
@@ -891,7 +919,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   // ------------------------------------------------------------------ VERİ
   function renderData() {
     const S = META.sources, nm = NM();
-    $('#d-intro').textContent = `Bu site yalnızca sen istediğinde güncellenir: GitHub'da Actions → “Verileri güncelle ve yayınla” → Run workflow, ya da Claude'a “güncelle” de. Güncelleme veriyi çeker, modeli yeniden kurar ve siteyi yayınlar. Son güncelleme ${trShort(META.generated)}. Sayfa kendisi hiçbir kaynağa istek atmaz${S.espn.cors ? '; tek istisna, sayfa açıkken oynanan maçların canlı skoru' : ''}.`;
+    $('#d-intro').textContent = `Bu site yalnızca sen istediğinde güncellenir: sayfanın üstündeki “Verileri güncelle” düğmesi, GitHub'da Actions → “Verileri güncelle ve yayınla” → Run workflow, ya da Claude'a “güncelle” de. Güncelleme veriyi çeker, modeli yeniden kurar ve siteyi yayınlar. Son güncelleme ${trShort(META.generated)}. Sayfa kendisi hiçbir kaynağa istek atmaz${S.espn.cors ? '; tek istisna, sayfa açıkken oynanan maçların canlı skoru' : ''}.`;
     const lm = Object.entries(S['football-data'].son_mac || {}).map(([d, v]) => `${nm[d]} ${v ? longDate(v) : '—'}`).join(' · ');
     $('#d-src').innerHTML = `<thead><tr><th>Kaynak</th><th>Ne için</th><th>Son başarılı çekim</th></tr></thead><tbody>
       <tr><td>football-data.co.uk</td><td>Sonuç, devre skoru, korner (kaynak Pazar ve Çarşamba geceleri günceller)<small>Son maç: ${esc(lm)}</small></td><td>${ago(S['football-data'].ok)}</td></tr>
@@ -911,6 +939,61 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       <p>Devre skoru, ikinci yarı, İY/MS ve korner hesapları her durumda istatistik modelinden gelir (ücretsiz veride bunların oranı yok). Banko ve sürpriz seçimleri sabit kurallarla yapılır ve maç başlayana kadar her güncellemede yeniden hesaplanır. Karneye, maç başlamadan önceki son güncellemede sitede görünen seçim yazılır; maç başladıktan sonra seçim değişmez ve kayıttan hiçbir satır silinmez. Tahmin formülleri kilitlidir: değişirse güncelleme durur.</p>
       <p>Oranı olmayan maçlarda modelin bilmedikleri: sakatlık, ceza, rotasyon, teknik direktör değişikliği, motivasyon, hava. Oranlar bunların çoğunu yansıtır; bu yüzden oran gelmeden önceki tahminlere daha temkinli bak.</p>`;
     $('#foot').textContent = `Tahminler olasılıktır, kesin sonuç değildir. Geçmiş testte hiçbir seçim kuralı bahis oranlarına karşı güvenilir bir kâr göstermedi. Son güncelleme: ${trShort(META.generated)}.`;
+  }
+
+  // ------------------------------------------------------------------ update button
+  const REPO = () => (META && META.repo) || (location.hostname.endsWith('.github.io') ? `${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}` : 'batshuayibatsman/futbol-tahmin');
+  const TOKKEY = 'ft_gh_token';
+  const getTok = () => { try { return localStorage.getItem(TOKKEY) || ''; } catch (e) { return ''; } };
+  const setTok = v => { try { if (v) localStorage.setItem(TOKKEY, v); else localStorage.removeItem(TOKKEY); } catch (e) { } };
+  const updSt = t => { $('#upd-st').textContent = t; };
+  const ghHeaders = tok => ({ 'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' });
+  let WATCH = null;
+  function showUpdPanel(msg) {
+    $('#upd-panel').hidden = false; $('#upd-gh').href = `https://github.com/${REPO()}/actions/workflows/guncelle.yml`;
+    if (msg) updSt(msg);
+  }
+  async function startUpdate() {
+    const tok = getTok();
+    if (!tok) { showUpdPanel(''); $('#upd-panel').scrollIntoView({ block: 'nearest' }); return; }
+    const btn = $('#upd-btn'); btn.disabled = true; updSt('Güncelleme başlatılıyor…');
+    const t0 = Date.now(), gen0 = DATA.meta.generated;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${REPO()}/actions/workflows/guncelle.yml/dispatches`, { method: 'POST', headers: ghHeaders(tok), body: JSON.stringify({ ref: 'main' }) });
+      if (r.status === 204 || r.status === 200) { updSt('Güncelleme başladı. Genelde 4–6 dakika sürer; bitince sayfa kendini yeniler.'); watchUpdate(tok, t0, gen0); return; }
+      btn.disabled = false;
+      if (r.status === 401 || r.status === 403 || r.status === 404) showUpdPanel('Anahtar çalışmadı: süresi dolmuş, silinmiş ya da “Actions: Read and write” izni eksik olabilir. Yeni anahtar kur.');
+      else updSt(`GitHub şu an yanıt vermedi (${r.status}). Biraz sonra yeniden dene ya da GitHub'da başlat.`);
+    } catch (e) { btn.disabled = false; updSt('GitHub\'a bağlanılamadı. İnternetini kontrol et ya da GitHub\'da başlat.'); }
+  }
+  function watchUpdate(tok, t0, gen0) {
+    clearInterval(WATCH); let n = 0;
+    WATCH = setInterval(async () => {
+      n++;
+      try {
+        const r = await fetch(`https://api.github.com/repos/${REPO()}/actions/workflows/guncelle.yml/runs?per_page=1`, { headers: ghHeaders(tok), cache: 'no-store' });
+        if (r.ok) {
+          const run = ((await r.json()).workflow_runs || [])[0];
+          if (run && Date.parse(run.created_at) >= t0 - 90e3) {
+            if (run.status === 'completed' && run.conclusion !== 'success') { updSt(`Güncelleme tamamlanamadı (${run.conclusion}). Ayrıntı GitHub'da.`); $('#upd-btn').disabled = false; clearInterval(WATCH); return; }
+            updSt(run.status === 'completed' ? 'Güncelleme bitti, site yayınlanıyor…' : (run.status === 'queued' ? 'Sırada bekliyor…' : 'Veriler çekiliyor, model kuruluyor…'));
+          }
+        }
+      } catch (e) { /* durum okunamadı: veriyi yine de kontrol et */ }
+      await refreshData();
+      if (DATA.meta.generated !== gen0) { updSt(`Güncellendi: ${trShort(DATA.meta.generated)}.`); $('#upd-btn').disabled = false; clearInterval(WATCH); }
+      else if (n >= 45) { updSt('Güncelleme uzun sürdü; birkaç dakika sonra sayfayı yenile.'); $('#upd-btn').disabled = false; clearInterval(WATCH); }
+    }, 20000);
+  }
+  function wireUpdate() {
+    $('#upd-btn').addEventListener('click', startUpdate);
+    $('#upd-save').addEventListener('click', () => {
+      const v = $('#upd-tok').value.trim();
+      if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(v)) { updSt('Bu bir GitHub anahtarına benzemiyor (github_pat_ ile başlamalı).'); return; }
+      setTok(v); $('#upd-tok').value = ''; $('#upd-panel').hidden = true; startUpdate();
+    });
+    $('#upd-del').addEventListener('click', e => { e.preventDefault(); setTok(''); updSt('Anahtar bu cihazdan silindi.'); });
+    if (getTok()) updSt('Tek dokunuşla güncelleme bu cihazda açık.');
   }
 
   // ------------------------------------------------------------------ render all + routing + live refresh
@@ -977,7 +1060,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => go(t.dataset.view)));
   window.addEventListener('hashchange', route);
-  init(); setupCustom(); wireEVStatic(); wireFilters(); renderAll(); route(); startTimers();
+  init(); setupCustom(); wireEVStatic(); wireFilters(); wireUpdate(); renderAll(); route(); startTimers();
 })();
 </script>
 </body>

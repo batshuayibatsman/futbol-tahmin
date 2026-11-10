@@ -494,7 +494,7 @@ def main():
                  'rules': {'banko_menu': BANKO_MENU, 'banko_min': BANKO_MIN, 'banko_max': BANKO_MAX, 'surprise_menu': SURPRISE_MENU,
                            'surprise_min_p': SURPRISE_MIN_P, 'surprise_min_lift': SURPRISE_MIN_LIFT},
                  'sources': sources, 'alerts': alerts, 'espn_slugs': {d: S.LEAGUES[d]['espn'] for d in TARGET if S.LEAGUES[d]['espn']},
-                 'espn_map': espn_map, 'order': TARGET, 'ahead_days': AHEAD_DAYS,
+                 'espn_map': espn_map, 'order': TARGET, 'ahead_days': AHEAD_DAYS, 'repo': os.environ.get('GITHUB_REPOSITORY', ''),
                  'new_rows': log.new_rows, 'recorded_now': len(recorded), 'settled_now': len(settled)},
         'leagues': leagues, 'fixtures': fixtures, 'track': perf,
         'backtest': jload(FROZEN / 'backtest.json', {}), 'ht_corner': jload(FROZEN / 'ht_corner_check.json', {}),

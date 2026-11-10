@@ -53,6 +53,9 @@ Ziyaretçilerin tarayıcısı kaynaklara istek atmaz (ESPN izin veriyorsa canlı
 2. Bu depoda **Settings → Secrets and variables → Actions → New repository secret**: ad `ODDS_API_KEY`, değer anahtarın.
 
 ## Güncelleme nasıl başlatılır
+- **Sitedeki "Verileri güncelle" düğmesi:** bir kez kurulur. GitHub'da yalnızca bu depo için, yalnızca **Actions: Read and write**
+  izniyle bir fine-grained anahtar oluştur (düğmenin açtığı panelde adımlar var) ve panele yapıştır. Anahtar yalnızca o cihazın
+  tarayıcısında saklanır; siteye ya da depoya yazılmaz. Sonra tek dokunuşla güncellenir, sayfa bitince kendini yeniler.
 - **GitHub'da:** Actions → "Verileri güncelle ve yayınla" → Run workflow. Birkaç dakikada site yenilenir.
 - **Claude'a "güncelle" de:** Claude depodaki `guncelle.txt` dosyasını değiştirir, bu da aynı güncellemeyi başlatır.
 
