@@ -20,9 +20,11 @@ LEAGUES = {
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
 FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
-ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}-{d1}&limit=200'
+ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}-{d1}'
+ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}'
+ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
-PER_RUN_CAP = {'football-data.co.uk': 10, 'site.api.espn.com': 8, 'api.the-odds-api.com': 6}
+PER_RUN_CAP = {'football-data.co.uk': 10, 'site.api.espn.com': 30, 'api.the-odds-api.com': 6}
 
 
 def now_utc():
@@ -38,7 +40,8 @@ class Http:
         self.log = []
 
     def _host(self, url):
-        return url.split('/')[2]
+        h = url.split('/')[2].lower()
+        return h[4:] if h.startswith('www.') else h
 
     def get(self, key, url, min_interval_min, conditional=True, headers=None, redact=None):
         """Returns (bytes or None, info dict). Never raises."""
@@ -83,8 +86,12 @@ class Http:
                     meta.update(checked=time.time(), ok=time.time(), status=304, error=None)
                     info['action'] = 'değişmedi'; self.log.append(info)
                     return path.read_bytes(), info
-                err = f'HTTP {e.code}'
-                if e.code in (401, 403, 404, 429):
+                try:
+                    body = e.read()[:160].decode('utf-8', 'replace').replace('\n', ' ')
+                except Exception:
+                    body = ''
+                err = f'HTTP {e.code}' + (f' {body}' if body else '')
+                if e.code in (400, 401, 403, 404, 429):
                     break
             except Exception as e:
                 err = str(e)[:160]
