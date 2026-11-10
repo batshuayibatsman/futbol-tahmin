@@ -23,7 +23,7 @@ FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
 ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}'
 ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
-PER_RUN_CAP = {'football-data.co.uk': 10, 'site.api.espn.com': 30, 'api.the-odds-api.com': 6}
+PER_RUN_CAP = {'football-data.co.uk': 10, 'site.api.espn.com': 70, 'api.the-odds-api.com': 6}
 
 
 def now_utc():
@@ -275,6 +275,47 @@ def parse_espn(b):
                        'hs': score(h), 'as': score(a), 'hht': half(h), 'aht': half(a),
                        'hc': stat(h, 'wonCorners'), 'ac': stat(a, 'wonCorners'), 'odds': odds})
     return ev_out
+
+
+def espn_calendar(b):
+    """Match dates (US Eastern calendar days, YYYYMMDD) listed in a scoreboard response's league calendar."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo('America/New_York')
+    try:
+        J = json.loads(b)
+    except Exception:
+        return None
+    cal = []
+    for lg in J.get('leagues') or []:
+        for c in lg.get('calendar') or []:
+            items = []
+            if isinstance(c, str):
+                items = [c]
+            elif isinstance(c, dict):
+                a, z = _iso(c.get('startDate')), _iso(c.get('endDate'))
+                if a and z:
+                    d = a.astimezone(et).date()
+                    while d <= z.astimezone(et).date():
+                        cal.append(d.strftime('%Y%m%d')); d += dt.timedelta(days=1)
+                for e in c.get('entries') or []:
+                    if isinstance(e, dict):
+                        items += [e.get('startDate')]
+            for x in items:
+                t = _iso(x)
+                if t:
+                    cal.append(t.astimezone(et).date().strftime('%Y%m%d'))
+    return sorted(set(cal)) if cal else None
+
+
+def espn_summary(b):
+    try:
+        J = json.loads(b)
+    except Exception:
+        return 'okunamadı'
+    ev = J.get('events') or []
+    ds = sorted(e.get('date', '') for e in ev)
+    lg = (J.get('leagues') or [{}])[0]
+    return f"{len(ev)} maç {ds[0][:10] if ds else ''}..{ds[-1][:10] if ds else ''}, takvim {len(lg.get('calendar') or [])} gün ({lg.get('calendarType')})"
 
 
 # ---------------------------------------------------------------- The Odds API (optional)

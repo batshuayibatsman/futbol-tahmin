@@ -117,33 +117,52 @@ def main():
     fd_fix_seen = state['http'].get('fd_fixtures', {}).get('ok')
 
     # ------------------------------------------------------------ 3. ESPN fixtures + live
-    # ESPN refuses date ranges (HTTP 400), so per league: the default scoreboard (current/next matchday) plus
-    # yesterday, today and tomorrow by date. Refreshed every 10 minutes around matches, otherwise every 2 hours.
+    # ESPN refuses date ranges (HTTP 400). Per league: the default scoreboard (latest/current matchday, with the
+    # season's match-date calendar), then every match date from yesterday to +14 days by date. Today's and
+    # yesterday's dates refresh every 10 minutes around matches (2 hours otherwise), the next 3 days every 2 hours,
+    # later dates every 6 hours.
+    from zoneinfo import ZoneInfo as _Z
     hot = state.get('espn_hot', True)
     iv = ESPN_HOT_MIN if hot else ESPN_COLD_MIN
-    days = [(now_tr.date() + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (-1, 0, 1)]
+    et_today = now.astimezone(_Z('America/New_York')).date()
+    lo, hi = (et_today - dt.timedelta(days=1)).strftime('%Y%m%d'), (et_today + dt.timedelta(days=AHEAD_DAYS)).strftime('%Y%m%d')
+    near = {(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (-1, 0)}
+    soon = {(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (1, 2, 3)}
     espn, espn_ok, cors = {}, {}, state.get('espn_cors')
     origin = a.site_origin or 'https://example.github.io'
     diag = []
+    days = set()
     for div in TARGET:
         slug = S.LEAGUES[div]['espn']; evs_all = {}; got = False; oks = []
-        reqs = [(f'espn_{div}_plain', S.ESPN_PLAIN.format(slug=slug))] + [(f'espn_{div}_{d}', S.ESPN_DAY.format(slug=slug, d0=d)) for d in days]
-        for key, url in reqs:
-            b, info = http.get(key, url, iv, conditional=False)
-            if info.get('action') == 'hata':
-                diag.append(f'{key}: {info.get("error")}')
-            evs = S.parse_espn(b) if b else None
-            if b and evs is None:
+        b, info = http.get(f'espn_{div}_plain', S.ESPN_PLAIN.format(slug=slug), iv, conditional=False)
+        espn_cal = S.espn_calendar(b) if b else None
+        if b:
+            diag.append(f'{div} varsayılan: {S.espn_summary(b)}')
+        want = [d for d in (espn_cal or []) if lo <= d <= hi]
+        if espn_cal is None:
+            want = [(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in range(-1, 8)]
+            diag.append(f'{div}: takvim yok, 9 gün tek tek')
+        days.update(want)
+        reqs = [(None, b, info)]
+        for d in want:
+            div_iv = iv if d in near else (120 if d in soon else 360)
+            b2, i2 = http.get(f'espn_{div}_{d}', S.ESPN_DAY.format(slug=slug, d0=d), div_iv, conditional=False)
+            reqs.append((d, b2, i2))
+        for d, bb, ii in reqs:
+            if ii.get('action') == 'hata':
+                diag.append(f'{div} {d or "varsayılan"}: {ii.get("error")}')
+            evs = S.parse_espn(bb) if bb else None
+            if bb and evs is None:
                 alert('UYARI', names[div], 'ESPN yanıtı okunamadı')
             for e in evs or []:
                 evs_all[e['id']] = e
-            got = got or bool(b)
-            oks.append(state['http'].get(key, {}).get('ok') or 0)
+            got = got or bool(bb)
+            oks.append(state['http'].get(f'espn_{div}_{d or "plain"}', {}).get('ok') or 0)
         if not got:
             alert('UYARI', names[div], 'ESPN fikstür/canlı skor alınamadı; fikstür yalnızca football-data oran dosyasından')
         espn[div] = list(evs_all.values())
         espn_ok[div] = max(oks) or None
-    # forget per-day cache entries older than three days
+    # forget per-day cache entries that left the window
     keep = set(days)
     for k in [k for k in state.get('http', {}) if k.startswith('espn_') and k[-8:].isdigit() and k[-8:] not in keep]:
         state['http'].pop(k, None)
