@@ -82,7 +82,7 @@ def main():
     if today.month in (7, 8, 9):
         py = SEASON - 1; codes.append(f'{py % 100:02d}{(py + 1) % 100:02d}')
     fd_status = {}
-    for div in [d for d in TARGET if d not in EXTRA]:
+    for div in [d for d in TARGET if d not in EXTRA and d not in ODDS_ONLY]:
         for c in codes:
             b, info = http.get(f'fd_{c}_{div}', S.FD_SEASON.format(code=c, div=div), FD_MIN)
             snap = ROOT / 'data' / 'seasons' / c / f'{div}.csv'
@@ -481,7 +481,8 @@ def main():
         return dt.datetime.fromtimestamp(x, UTC).isoformat(timespec='seconds') if x else None
     hs = state.get('http', {})
     sources = {
-        'football-data': {'ok': ts(max([hs.get(f'fd_{code}_{d}', {}).get('ok') or 0 for d in TARGET]) or None), 'son_mac': {d: leagues[d]['last_match'] for d in TARGET}},
+        'football-data': {'ok': ts(max([hs.get(f'fd_{code}_{d}', {}).get('ok') or 0 for d in TARGET if d not in ODDS_ONLY]) or None),
+                          'son_mac': {d: leagues[d]['last_match'] for d in TARGET if d not in ODDS_ONLY}},
         'oranlar': {'ok': ts(hs.get('fd_fixtures', {}).get('ok')), 'mac_sayisi': len([f for f in fixtures if f.get('odds')]),
                     'orana_dayali': len([f for f in fixtures if (f.get('pred') or {}).get('odds_basis')])},
         'espn': {'ok': ts(max([espn_ok.get(d) or 0 for d in TARGET]) or None), 'cors': bool(cors),

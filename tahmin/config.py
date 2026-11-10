@@ -13,7 +13,7 @@ MAIN=['T1','E0','SP1','I1','D1','F1','N1','P1','B1','G1','SC0',
 EXTRA=['USA','ARG','AUT','BRA','CHN','DNK','FIN','IRL','SWE','SWZ','JPN','MEX','NOR','POL','ROU','RUS']
 # competitions without a statistics model: predictions only from bookmaker odds, full-time markets only
 ODDS_ONLY_MEN=['UCL','UEL','UECL']
-ODDS_ONLY_WOMEN=['UWCL','WSL','LIGAF','D1F','NWSL']
+ODDS_ONLY_WOMEN=['UWCL','WSL','LIGAF','FRW','NWSL']
 ODDS_ONLY=ODDS_ONLY_MEN+ODDS_ONLY_WOMEN
 TARGET=MAIN[:1]+ODDS_ONLY_MEN+MAIN[1:]+EXTRA+ODDS_ONLY_WOMEN
 TOP=MAIN                                              # v2: calibration on the 22 leagues with half-time scores

@@ -59,7 +59,7 @@ LEAGUES = {
     'UWCL': {'name': 'Kadınlar Şampiyonlar Ligi', 'short': 'UEFA Şampiyonlar Ligi', 'country': 'Kadınlar', 'espn': 'uefa.wchampions', 'odds': None, 'odds_only': True},
     'WSL': {'name': 'İngiltere Kadınlar Süper Ligi', 'short': 'İngiltere WSL', 'country': 'Kadınlar', 'espn': 'eng.w.1', 'odds': None, 'odds_only': True},
     'LIGAF': {'name': 'İspanya Kadınlar Liga F', 'short': 'İspanya Liga F', 'country': 'Kadınlar', 'espn': 'esp.w.1', 'odds': None, 'odds_only': True},
-    'D1F': {'name': 'Fransa Kadınlar Première Ligue', 'short': 'Fransa Première Ligue', 'country': 'Kadınlar', 'espn': 'fra.w.1', 'odds': None, 'odds_only': True},
+    'FRW': {'name': 'Fransa Kadınlar Première Ligue', 'short': 'Fransa Première Ligue', 'country': 'Kadınlar', 'espn': 'fra.w.1', 'odds': None, 'odds_only': True},
     'NWSL': {'name': 'ABD Kadınlar NWSL', 'short': 'ABD NWSL', 'country': 'Kadınlar', 'espn': 'usa.nwsl', 'odds': None, 'odds_only': True},
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
