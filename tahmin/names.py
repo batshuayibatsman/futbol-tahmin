@@ -65,7 +65,7 @@ ALIASES = {
            'rams başakşehir': 'Buyuksehyr', 'goztepe': 'Goztep', 'göztepe': 'Goztep', 'caykur rizespor': 'Rizespor', 'çaykur rizespor': 'Rizespor',
            'corum fk': 'Corum', 'çorum': 'Corum', 'çorum fk': 'Corum', 'arca çorum fk': 'Corum', 'besiktas jk': 'Besiktas', 'beşiktaş': 'Besiktas',
            'fenerbahçe': 'Fenerbahce', 'gaziantep fk': 'Gaziantep', 'gençlerbirliği': 'Genclerbirligi', 'kasımpaşa': 'Kasimpasa',
-           'eyüpspor': 'Eyupspor', 'amed sk': 'Amedspor', 'amed sportif faaliyetler': 'Amedspor', 'erzurumspor fk': 'Erzurumspor',
+           'eyüpspor': 'Eyupspor', 'amed sk': 'Amedspor', 'amed sfk': 'Amedspor', 'amed': 'Amedspor', 'amed sportif faaliyetler': 'Amedspor', 'erzurumspor fk': 'Erzurumspor',
            'erzurum bb': 'Erzurumspor', 'fatih karagumruk': 'Karagumruk', 'fatih karagümrük': 'Karagumruk', 'adana demirspor': 'Ad. Demirspor',
            'mke ankaragucu': 'Ankaragucu', 'ankaragücü': 'Ankaragucu', 'umraniyespor': 'Umraniyespor', 'sivasspor': 'Sivasspor',
            'corendon alanyaspor': 'Alanyaspor', 'tümosan konyaspor': 'Konyaspor', 'tumosan konyaspor': 'Konyaspor'},
