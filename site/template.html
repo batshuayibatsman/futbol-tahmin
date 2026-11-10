@@ -247,7 +247,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     </section>
     <section class="view" id="v-oran" role="tabpanel" aria-labelledby="t-oran" hidden>
       <h2>Oran hesabı</h2>
-      <p class="note">Bahis sitelerinin oranları kendiliğinden gelir (football-data.co.uk Salı ve Cuma öğleden sonra ekler). İstersen kendi sitenin oranını yaz: sayfa oranın ima ettiği olasılığı, modelin olasılığını ve 1 TL başına beklenen kazancı gösterir. Ondalık (1,85) ve Amerikan (+150, −120) oran kabul edilir.</p>
+      <p class="note">Bahis sitelerinin oranları güncellemede kendiliğinden gelir (football-data.co.uk Salı ve Cuma öğleden sonra ekler). İstersen kendi sitenin oranını yaz: sayfa oranın ima ettiği olasılığı, modelin olasılığını ve 1 TL başına beklenen kazancı gösterir. Ondalık (1,85) ve Amerikan (+150, −120) oran kabul edilir.</p>
       <div class="form" style="grid-template-columns:1fr">
         <label for="ev-match">Maç<select id="ev-match"></select></label>
       </div>
@@ -431,12 +431,12 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       $('#hdr-title').innerHTML = (a.m === b.m ? (a.d === b.d ? `${a.d} ${MONL[a.m]}` : `${a.d}–${b.d} ${MONL[b.m]}`) : `${a.d} ${MON[a.m]} – ${b.d} ${MON[b.m]}`) + ' <span class="thin">bülteni</span>';
     } else $('#hdr-title').innerHTML = 'Canlı <span class="thin">bülten</span>';
     const lastPlayed = Object.values(LG).map(l => l.last_match).filter(Boolean).sort().slice(-1)[0];
-    $('#hdr-stamp').textContent = `Son güncelleme ${trShort(META.generated)} (${ago(META.generated)}). Model, ${longDate(lastPlayed)} tarihine kadar oynanan maçlarla kuruldu. Model rastgelelik içermez: aynı veriyle her zaman aynı sayıları verir. Saatler Türkiye saatidir.`;
+    $('#hdr-stamp').textContent = `Son güncelleme ${trShort(META.generated)} (${ago(META.generated)}); yalnızca sen istediğinde güncellenir. Model, ${longDate(lastPlayed)} tarihine kadar oynanan maçlarla kuruldu. Model rastgelelik içermez: aynı veriyle her zaman aynı sayıları verir. Saatler Türkiye saatidir.`;
     const S = META.sources, pills = [];
     const pill = (lab, iso, okHours) => { const h = iso ? (Date.now() - Date.parse(iso)) / 3600e3 : 1e9; return `<span class="fp ${h <= okHours ? '' : (h <= okHours * 4 ? 'warn' : 'bad')}"><i></i>${lab}: ${ago(iso)}</span>`; };
-    pills.push(pill('Sonuçlar', S['football-data'].ok, 8));
-    pills.push(pill('Fikstür ve skor', S.espn.ok, 3));
-    pills.push(S.oranlar.mac_sayisi ? pill(`Oranlar (${S.oranlar.mac_sayisi} maç)`, S.oranlar.ok, 8) : `<span class="fp off"><i></i>Oranlar: bu hafta henüz yok</span>`);
+    pills.push(pill('Sonuçlar', S['football-data'].ok, 24));
+    pills.push(pill('Fikstür ve skor', S.espn.ok, 24));
+    pills.push(S.oranlar.mac_sayisi ? pill(`Oranlar (${S.oranlar.mac_sayisi} maç)`, S.oranlar.ok, 24) : `<span class="fp off"><i></i>Oranlar: bu hafta henüz yok</span>`);
     if (S.odds_api.aktif) pills.push(`<span class="fp"><i></i>Odds API: ${S.odds_api.kalan ?? '?'} kredi</span>`);
     $('#hdr-fresh').innerHTML = pills.join('');
     const al = (META.alerts || []).filter(a => a.seviye !== 'BİLGİ');
@@ -451,7 +451,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       <span class="pick-mk">${esc(longLabel(k, f.home_name, f.away_name))}</span></span>
       <span class="pick-num"><span class="pick-pct">${pct(p)}</span><span class="pick-odds">${extra || ''}</span></span></button>`;
   }
-  const lockTxt = pk => pk.locked ? `kilitli · ${trShort(pk.at)}` : 'geçici · 48 saat kala kilitlenir';
+  const lockTxt = pk => pk.locked ? `kilitli · ${trShort(pk.at)}` : 'geçici · maça 48 saatten az kala güncellenince kilitlenir';
   function bestOdds(f, k) {
     const key = { 'MS 1': '1', 'Sürpriz MS 1': '1', 'MS X': 'X', 'MS 2': '2', 'Sürpriz MS 2': '2', '2.5 Üst': 'Ü2.5', '2.5 Alt': 'A2.5', '1.5 Üst': 'Ü1.5', '3.5 Alt': 'A3.5', '3.5 Üst': 'Ü3.5', '1.5 Alt': 'A1.5' }[k];
     const O = f.odds || {}; if (!key) return null;
@@ -463,7 +463,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     const bk = up.map(f => ({ f, pk: pickOf(f, 'BANKO') })).filter(x => x.pk).sort((x, y) => (y.pk.p - x.pk.p) || (x.f.i - y.f.i));
     $('#l-banko').innerHTML = bk.length ? bk.slice(0, 10).map(({ f, pk }) => { const o = bestOdds(f, pk.k); return pickRow(f, pk.k, pk.p, 'ok', `adil oran ${odd(pk.p)}${o ? ` · en iyi ${num(o, 2)}` : ''}<br>${lockTxt(pk)}`); }).join('') : '<div class="empty">Şu an banko şartını sağlayan yaklaşan maç yok.</div>';
     const bt = BT.banko || { all: {} };
-    $('#nb-banko').textContent = `Her maçta, %${Math.round(R.banko_max * 100)}'ı geçmeyen en olası sonuç seçilir (en az %${Math.round(R.banko_min * 100)}). Seçim maçtan ${META.lock_hours} saat önce kilitlenir ve kayda geçer; sonra değişmez. Geçmiş testte bu kuralın ${thou(bt.all.n || 0)} bankosu için model ortalama ${pct(bt.all.pred, 1)} dedi, gerçekleşen ${pct(bt.all.hit, 1)} oldu: kabaca her 5 bankodan 1'i yatar.`;
+    $('#nb-banko').textContent = `Her maçta, %${Math.round(R.banko_max * 100)}'ı geçmeyen en olası sonuç seçilir (en az %${Math.round(R.banko_min * 100)}). Seçim, maça ${META.lock_hours} saatten az kala yapılan ilk güncellemede kilitlenir ve kayda geçer; sonra değişmez. Geçmiş testte bu kuralın ${thou(bt.all.n || 0)} bankosu için model ortalama ${pct(bt.all.pred, 1)} dedi, gerçekleşen ${pct(bt.all.hit, 1)} oldu: kabaca her 5 bankodan 1'i yatar.`;
     const sp = up.map(f => ({ f, pk: pickOf(f, 'SÜRPRİZ') })).filter(x => x.pk).sort((x, y) => ((y.pk.lift || 0) - (x.pk.lift || 0)) || (x.f.i - y.f.i));
     $('#l-surpriz').innerHTML = sp.length ? sp.slice(0, 8).map(({ f, pk }) => { const b = f.L.base[pk.k], o = bestOdds(f, pk.k); return pickRow(f, pk.k, pk.p, 'fl', `adil oran ${odd(pk.p)}${o ? ` · en iyi ${num(o, 2)}` : ''}<br>olağan ${pct(b)} · ${num(pk.lift || (b ? pk.p / b : 0))} kat · ${pk.locked ? 'kilitli' : 'geçici'}`); }).join('') : '<div class="empty">Şu an sürpriz şartını sağlayan yaklaşan maç yok.</div>';
     const st = BT.surpriz || { all: {} };
@@ -519,7 +519,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   const evCell = (p, o, push) => { if (!o) return '<td>—</td>'; const v = E.ev(p, push || 0, o); return `<td>${num(o, 2)}<small class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${num(Math.abs(v), 2)}</small></td>`; };
   function oddsHTML(c) {
     const O = c.odds;
-    if (!O) return `<p class="note">Bu maç için henüz oran yok. football-data.co.uk oranları hafta sonu maçları için Cuma, hafta içi maçlar için Salı öğleden sonra ekler; sayfa onları kendiliğinden alır.</p>`;
+    if (!O) return `<p class="note">Bu maç için henüz oran yok. football-data.co.uk oranları hafta sonu maçları için Cuma, hafta içi maçlar için Salı öğleden sonra ekler; o saatten sonraki ilk güncellemede buraya gelir.</p>`;
     const m = c.r.markets, H = c.home_name, A = c.away_name;
     const books = [['b365', 'Bet365'], ['pin', 'Pinnacle'], ['max', 'En iyi'], ['avg', 'Ortalama']].filter(([k]) => O[k]);
     const rows = [['1', 'MS 1', H + ' kazanır'], ['X', 'MS X', 'Beraberlik'], ['2', 'MS 2', A + ' kazanır'], ['Ü1.5', '1.5 Üst', '1,5 Üst'], ['A1.5', '1.5 Alt', '1,5 Alt'], ['Ü2.5', '2.5 Üst', '2,5 Üst'], ['A2.5', '2.5 Alt', '2,5 Alt'], ['Ü3.5', '3.5 Üst', '3,5 Üst'], ['A3.5', '3.5 Alt', '3,5 Alt']]
@@ -584,7 +584,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       let w = `Adil oran ${odd(show.p)}.`;
       if (typ === 'SÜRPRİZ' && base) w = `Bu ligde olağan sıklığı ${pct(base)}; bu maçta ${num(show.p / base)} kat daha olası. ` + w;
       if (pk && pk.locked) w += ` Seçim ${trShort(pk.at)} tarihinde kilitlendi${pk.now !== undefined && Math.abs(pk.now - pk.p) >= 0.005 ? `; modelin şu anki olasılığı ${pct(pk.now)}` : ''}.`;
-      else if (c.kickoff) w += ` Geçici: maça ${META.lock_hours} saat kala kilitlenir.`;
+      else if (c.kickoff) w += ` Geçici: maça ${META.lock_hours} saatten az kala yapılan ilk güncellemede kilitlenir.`;
       if (pk && pk.res) w += ` Sonuç: <b class="${pk.res === 'Tuttu' ? 'res-ok' : 'res-no'}">${esc(pk.res)}</b>.`;
       const bo = c.kickoff ? bestOdds(c, show.k) : null;
       if (bo) w += ` Şu an en iyi oran ${num(bo, 2)} (1 TL için ${(() => { const v = E.ev(show.p, 0, bo); return `<span class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${num(Math.abs(v), 2)} TL</span>`; })()}).`;
@@ -666,8 +666,8 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     const done = FX.filter(f => f.state === 'post').sort((x, y) => y.kickoff.localeCompare(x.kickoff) || (x.i - y.i)).slice(0, 12);
     const S = META.sources.espn;
     $('#c-note').textContent = live.length
-      ? `${live.length} maç oynanıyor. ${S.cors ? 'Skorlar sayfa açıkken her dakika ESPN\'den yenilenir.' : 'Skorlar her 20 dakikada bir güncellenir.'} Son kontrol ${ago(S.ok)}.`
-      : `Şu an oynanan maç yok. Fikstür ve skorlar ESPN'den her 20 dakikada bir, maç saatlerinde daha sık alınır (son kontrol ${ago(S.ok)}).`;
+      ? `${live.length} maç oynanıyor. ${S.cors ? 'Skorlar bu sayfa açıkken her dakika ESPN\'den yenilenir.' : 'Skorlar son güncellemedeki haliyle; yenilemek için güncelleme başlat.'} Fikstür son kontrol: ${ago(S.ok)}.`
+      : `Şu an oynanan maç yok. Fikstür son güncellemede ESPN'den alındı (${ago(S.ok)}). Maç başlayınca skorlar bu sayfa açıkken her dakika yenilenir.`;
     $('#c-live').innerHTML = live.length ? `<div class="mlist">${live.map(cardHTML).join('')}</div>` : '';
     $('#c-next').innerHTML = next.length ? `<div class="mlist">${next.map(cardHTML).join('')}</div>` : `<div class="empty">Önümüzdeki ${META.ahead_days || 14} günde maç görünmüyor.</div>`;
     $('#c-done').innerHTML = done.length ? `<div class="mlist">${done.map(cardHTML).join('')}</div>` : '<div class="empty">Son 36 saatte biten maç yok.</div>';
@@ -771,7 +771,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   function renderTrack() {
     const T = DATA.track || {}, A = T.all;
     if (!A || !T.n_locked) {
-      $('#lk-intro').textContent = `Canlı takip yeni başladı. Her maçın bankosu ve sürprizi maçtan ${META.lock_hours} saat önce kilitlenip kayda geçecek; sonuçlar football-data.co.uk resmî istatistikleri gelince (genelde Pazar ve Çarşamba geceleri) kendiliğinden işlenecek. Kayıttan hiçbir satır silinmez.`;
+      $('#lk-intro').textContent = `Canlı takip yeni başladı. Bir maçın bankosu ve sürprizi, maça ${META.lock_hours} saatten az kala yaptığın ilk güncellemede kilitlenip kayda geçer; sonuçlar football-data.co.uk resmî istatistikleri geldikten sonraki ilk güncellemede işlenir. Kayıttan hiçbir satır silinmez.`;
       $('#lk-tiles').innerHTML = ''; $('#lk-recent').innerHTML = ''; $('#lk-div').innerHTML = ''; return;
     }
     $('#lk-intro').textContent = `${trShort(T.first_lock)} tarihinden beri ${thou(T.n_locked)} seçim kilitlendi; ${thou(A.sonuclanan)} tanesi sonuçlandı, ${thou(A.bekliyor)} tanesi resmî sonucu bekliyor. Oranlar seçim kilitlendikten sonra görülen ilk fiyatlardır; korner, ilk yarı ve çifte şans için ücretsiz oran olmadığından bu seçimler isabete sayılır, birime sayılmaz.`;
@@ -846,12 +846,12 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   // ------------------------------------------------------------------ VERİ
   function renderData() {
     const S = META.sources, nm = NM();
-    $('#d-intro').textContent = `Bu site kendini GitHub üzerinde her 20 dakikada bir günceller; ziyaretçinin tarayıcısı hiçbir kaynağa istek atmaz${S.espn.cors ? ' (canlı maç sırasında skorlar hariç)' : ''}. Son çalışma ${trShort(META.generated)}.`;
+    $('#d-intro').textContent = `Bu site yalnızca sen istediğinde güncellenir: GitHub'da Actions → “Verileri güncelle ve yayınla” → Run workflow, ya da Claude'a “güncelle” de. Güncelleme veriyi çeker, modeli yeniden kurar ve siteyi yayınlar. Son güncelleme ${trShort(META.generated)}. Sayfa kendisi hiçbir kaynağa istek atmaz${S.espn.cors ? '; tek istisna, sayfa açıkken oynanan maçların canlı skoru' : ''}.`;
     const lm = Object.entries(S['football-data'].son_mac || {}).map(([d, v]) => `${nm[d]} ${v ? longDate(v) : '—'}`).join(' · ');
     $('#d-src').innerHTML = `<thead><tr><th>Kaynak</th><th>Ne için</th><th>Son başarılı çekim</th></tr></thead><tbody>
-      <tr><td>football-data.co.uk</td><td>Sonuç, devre skoru, korner (Pazar ve Çarşamba geceleri güncellenir)<small>Son maç: ${esc(lm)}</small></td><td>${ago(S['football-data'].ok)}</td></tr>
-      <tr><td>football-data.co.uk</td><td>Oranlar: Bet365, Pinnacle, en iyi ve ortalama; 1X2, 2,5 gol, Asya handikap (Salı ve Cuma öğleden sonra)<small>${S.oranlar.mac_sayisi} maçta oran var</small></td><td>${ago(S.oranlar.ok)}</td></tr>
-      <tr><td>ESPN (resmî olmayan açık veri)</td><td>Önümüzdeki iki haftanın fikstürü, maç durumu ve canlı skor<small>${S.espn.cors ? 'Sayfa açıkken canlı skorlar doğrudan da yenilenir.' : 'Canlı skorlar 20 dakikada bir.'}</small></td><td>${ago(S.espn.ok)}</td></tr>
+      <tr><td>football-data.co.uk</td><td>Sonuç, devre skoru, korner (kaynak Pazar ve Çarşamba geceleri günceller)<small>Son maç: ${esc(lm)}</small></td><td>${ago(S['football-data'].ok)}</td></tr>
+      <tr><td>football-data.co.uk</td><td>Oranlar: Bet365, Pinnacle, en iyi ve ortalama; 1X2, 2,5 gol, Asya handikap (kaynak Salı ve Cuma öğleden sonra ekler)<small>${S.oranlar.mac_sayisi} maçta oran var</small></td><td>${ago(S.oranlar.ok)}</td></tr>
+      <tr><td>ESPN (resmî olmayan açık veri)</td><td>Önümüzdeki iki haftanın fikstürü, maç durumu ve canlı skor<small>${S.espn.cors ? 'Sayfa açıkken canlı skorlar her dakika doğrudan yenilenir.' : 'Canlı skorlar güncellemedeki haliyle.'}</small></td><td>${ago(S.espn.ok)}</td></tr>
       <tr><td>The Odds API</td><td>Daha sık ve daha çok sitenin oranları<small>${S.odds_api.aktif ? `Açık · bu ay ${S.odds_api.bu_ay} kredi kullanıldı, ${S.odds_api.kalan ?? '?'} kaldı` : 'Kapalı: ücretsiz anahtar eklenirse açılır (README)'}</small></td><td>${S.odds_api.aktif ? 'açık' : '—'}</td></tr></tbody>`;
     const al = META.alerts || [];
     $('#d-alerts').innerHTML = al.length ? al.map(a => `<div class="alertline ${esc(a.seviye)}"><b>${esc(a.seviye)}</b>${esc(a.kapsam)}: ${esc(a.mesaj)}</div>`).join('') : '<p class="note">Uyarı yok: bütün kaynaklar okundu.</p>';
@@ -861,7 +861,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     const cal = META.cal, cfg = META.model;
     $('#d-method').innerHTML = `<p>Her takımın hücum ve savunma gücü son 4 yılın lig maçlarından hesaplanır; yeni maçlar daha ağır basar (gollerde yarı ömür ${Math.round(cfg.hl_goals / 30.4)} ay, kornerlerde ${Math.round(cfg.hl_corners / 30.4)} ay). Güçler ortalamaya doğru hafifçe çekilir, böylece birkaç maçlık seri tahminleri savurmaz. Lige yeni çıkan takımlar, 2010–2020 arasında yükselen 175 takımın ortalamasıyla başlar.</p>
       <p>Goller her yarı için ayrı Poisson dağılımıyla hesaplanır; ikinci yarının temposu devre skoruna bağlıdır. İY/MS tablosu, gerçek maçlarda modelin öngördüğünden sık görülen dönüşlere göre düzeltildi. Kornerler negatif binom dağılımıyla, lig ortalamasına doğru çekilerek hesaplanır; ilk yarı kornerleri toplamın %${Math.round(cal.c1_share * 100)}'si kabul edilir.</p>
-      <p>Banko ve sürpriz seçimleri sabit kurallarla yapılır, maçtan ${META.lock_hours} saat önce kilitlenir ve silinmeyen bir kayda yazılır. Tahmin formülleri kilitlidir: değişirse otomatik güncelleme durur. Elle yenilemek için GitHub'da Actions → “Verileri güncelle ve yayınla” → Run workflow.</p>
+      <p>Banko ve sürpriz seçimleri sabit kurallarla yapılır. Maça ${META.lock_hours} saatten az kala yaptığın ilk güncellemede kilitlenir ve silinmeyen bir kayda yazılır; o aralıkta hiç güncelleme yapmazsan o maçın seçimi kayda geçmez. Maç başladıktan sonra seçim asla kaydedilmez. Tahmin formülleri kilitlidir: değişirse güncelleme durur.</p>
       <p>Modelin bilmedikleri: sakatlık, ceza, rotasyon, teknik direktör değişikliği, motivasyon, hava. Bu yüzden piyasadan çok farklı tahminlerde dikkatli ol.</p>`;
     $('#foot').textContent = `Tahminler olasılıktır, kesin sonuç değildir. Geçmiş testte hiçbir seçim kuralı bahis oranlarına karşı kâr etmedi. Son güncelleme: ${trShort(META.generated)}.`;
   }
@@ -913,7 +913,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
           f.live = Object.assign({}, f.live, { hs: isNaN(hs) ? null : hs, as: isNaN(as) ? null : as, clock: (comp.status || {}).displayClock, detail: ty.shortDetail });
           if (st !== f.state || true) { f.state = st; changed = true; }
         }
-      } catch (e) { /* ESPN erişilemedi: 20 dakikalık güncelleme devam eder */ }
+      } catch (e) { /* ESPN erişilemedi: sayfadaki son güncelleme verisiyle devam */ }
     }
     if (changed) { renderAll(); }
   }

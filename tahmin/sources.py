@@ -23,7 +23,9 @@ FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
 ESPN_DAY = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard?dates={d0}'
 ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreboard'
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
-PER_RUN_CAP = {'football-data.co.uk': 10, 'site.api.espn.com': 70, 'api.the-odds-api.com': 6}
+# Updates run only on request and with --force every source is re-checked, so one run must fit a full refresh:
+# football-data up to 13 files (two seasons in Jul-Sep + fixtures), ESPN 6 scoreboards + every match date in 16 days.
+PER_RUN_CAP = {'football-data.co.uk': 20, 'site.api.espn.com': 150, 'api.the-odds-api.com': 6}
 
 
 def now_utc():

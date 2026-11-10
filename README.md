@@ -1,16 +1,16 @@
 # Futbol Tahmin Bülteni
 
-Süper Lig, Premier Lig, La Liga, Serie A, Bundesliga ve Ligue 1 için **kendi kendine güncellenen** tahmin sitesi:
+Süper Lig, Premier Lig, La Liga, Serie A, Bundesliga ve Ligue 1 için **istediğinde tek dokunuşla güncellenen** tahmin sitesi:
 **https://batshuayibatsman.github.io/futbol-tahmin/**
 
-GitHub her 20 dakikada bir veriyi kendisi çeker, modeli yeniden kurar, tahminleri hesaplar ve siteyi yayınlar.
-Senin hiçbir şey yapıştırman ya da çalıştırman gerekmez. Sayfa açıkken de kendini yeniler.
+Zamanlanmış çalıştırma yoktur. Güncelleme yalnızca sen istediğinde çalışır: GitHub veriyi kendisi çeker, modeli yeniden kurar,
+tahminleri hesaplar ve siteyi yayınlar. Hiçbir şey yapıştırman gerekmez.
 
 ## Sitede ne var
 
 - Her maç için ilk yarı ve maç sonu beklenen gol ve korner, skor olasılıkları, 9 hücreli İY/MS tablosu (1/2 ve 2/1 dönüşleri),
   gol ve korner alt/üst çizgileri, karşılıklı gol
-- Sabit kurallarla seçilen **banko** ve **sürpriz** tahminler; maçtan **48 saat önce kilitlenir**, sonra değişmez
+- Sabit kurallarla seçilen **banko** ve **sürpriz** tahminler; maça **48 saatten az kala yapılan ilk güncellemede kilitlenir**, sonra değişmez
 - Bahis sitelerinin oranları (Bet365, Pinnacle, en iyi, ortalama: 1X2, 2,5 gol, Asya handikap) ve her oran için modelin
   beklediği kazanç/kayıp
 - **Canlı** sekmesi: oynanan maçların skoru, sıradaki maçlar, son biten maçlar
@@ -22,13 +22,12 @@ Senin hiçbir şey yapıştırman ya da çalıştırman gerekmez. Sayfa açıkke
 
 | Kaynak | Ne için | Ne zaman yenilenir |
 |---|---|---|
-| football-data.co.uk | Sonuç, devre skoru, korner (modelin verisi) | Site 3 saatte bir bakar; kaynak Pazar ve Çarşamba geceleri günceller |
+| football-data.co.uk | Sonuç, devre skoru, korner (modelin verisi) | Kaynak Pazar ve Çarşamba geceleri günceller |
 | football-data.co.uk | Oranlar (Bet365, Pinnacle, en iyi, ortalama) | Kaynak hafta sonu maçları için Cuma, hafta içi için Salı öğleden sonra ekler |
-| ESPN (resmî olmayan açık veri) | İki haftalık fikstür, maç durumu, canlı skor | Her 20 dakika; maç saatlerinde 10 dakika |
-| The Odds API (isteğe bağlı) | Daha sık ve daha çok sitenin oranları | Maçtan önceki 36 saatte, lig başına en sık 8 saatte bir |
+| ESPN (resmî olmayan açık veri) | İki haftalık fikstür, maç durumu, canlı skor | Her güncellemede; canlı skorlar sayfa açıkken her dakika |
+| The Odds API (isteğe bağlı) | Daha sık ve daha çok sitenin oranları | Güncellemede, maçtan önceki 36 saatte, lig başına en sık 8 saatte bir |
 
-İstekler sınırlıdır: her kaynak için önbellek ve en kısa yenileme süresi vardır, değişmeyen dosya yeniden indirilmez,
-bir çalıştırmada her siteye en fazla birkaç istek gider. Ziyaretçilerin tarayıcısı kaynaklara istek atmaz
+İstekler sınırlıdır: bir güncellemede her siteye sınırlı sayıda istek gider. Ziyaretçilerin tarayıcısı kaynaklara istek atmaz
 (ESPN izin veriyorsa canlı maç sırasında skorlar hariç).
 
 ### Daha sık oran istersen (ücretsiz)
@@ -36,8 +35,12 @@ bir çalıştırmada her siteye en fazla birkaç istek gider. Ziyaretçilerin ta
 2. Bu depoda **Settings → Secrets and variables → Actions → New repository secret**: ad `ODDS_API_KEY`, değer anahtarın.
 Site ayda en fazla ~440 kredi harcar (60 kredi yedekte kalır); ücretsiz plan 500 kredidir.
 
-## Elle yenileme
-**Actions → "Verileri güncelle ve yayınla" → Run workflow.** "Önbelleği yok say" kutusunu işaretlersen her şey yeniden indirilir.
+## Güncelleme nasıl başlatılır
+- **GitHub'da:** Actions → "Verileri güncelle ve yayınla" → Run workflow. Bir iki dakikada site yenilenir.
+- **Claude'a "güncelle" de:** Claude depodaki `guncelle.txt` dosyasını değiştirir, bu da aynı güncellemeyi başlatır.
+
+Seçimler maça 48 saatten az kala yaptığın ilk güncellemede kilitlenir. O aralıkta güncelleme yapmazsan o maçın seçimi kayda
+geçmez; maç başladıktan sonra hiçbir seçim kaydedilmez. Sonuçlar, football-data resmî istatistikleri geldikten sonraki ilk güncellemede işlenir.
 
 ## Dosyalar
 
@@ -53,8 +56,8 @@ Site ayda en fazla ~440 kredi harcar (60 kredi yedekte kalır); ücretsiz plan 5
 | `tests/` | İnternetsiz deneme için sahte kaynak üretici |
 
 ## Kurallar
-- **Formül kilidi:** `model.lock`, tahmin formülü dosyalarının parmak izini tutar. Biri onaysız değişirse otomatik güncelleme
-  durur. Değişikliği `research/` ile test ettikten sonra `python tahmin/lock.py approve "neden"` çalıştırıp commit et.
+- **Formül kilidi:** `model.lock`, tahmin formülü dosyalarının parmak izini tutar. Biri onaysız değişirse güncelleme
+  çalışmaz. Değişikliği `research/` ile test ettikten sonra `python tahmin/lock.py approve "neden"` çalıştırıp commit et.
 - **Kayıt:** `state/` dosyalarına yalnızca satır eklenir; kaybeden seçimler silinmez, seçim kuralları sonradan değiştirilmez.
 - Seçim, maç başladıktan sonra hiçbir zaman kaydedilmez.
 

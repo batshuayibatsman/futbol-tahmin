@@ -1,17 +1,13 @@
 name: Verileri güncelle ve yayınla
 
 on:
-  schedule:
-    - cron: '7,27,47 * * * *'      # her 20 dakikada bir (GitHub yoğunlukta birkaç dakika geciktirebilir)
+  # Yalnızca istendiğinde çalışır, zamanlanmış çalıştırma yok:
+  #  - GitHub'da Actions → "Verileri güncelle ve yayınla" → Run workflow
+  #  - ya da Claude'a "güncelle" dendiğinde guncelle.txt değişir ve bu çalıştırma başlar
   workflow_dispatch:
-    inputs:
-      tam:
-        description: 'Önbelleği yok say, bütün kaynakları yeniden indir'
-        type: boolean
-        default: false
   push:
     branches: [main]
-    paths: ['tahmin/**', 'site/**', 'data/history.csv', 'data/frozen/**', 'model.lock', '.github/workflows/**']
+    paths: ['guncelle.txt']
 
 permissions:
   contents: write
@@ -48,7 +44,7 @@ jobs:
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           SITE_ORIGIN: https://${{ github.repository_owner }}.github.io
-        run: python tahmin/pipeline.py ${{ (github.event_name == 'workflow_dispatch' && inputs.tam) && '--force' || '' }}
+        run: python tahmin/pipeline.py --force
       - name: Tarayıcı motoru ile Python aynı sonucu veriyor mu
         run: node site/parity_test.js .cache/parity.json
       - name: Kalıcı kayıtları depoya yaz (yalnızca ekleme)
