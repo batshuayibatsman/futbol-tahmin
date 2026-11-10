@@ -9,8 +9,8 @@ python tahmin/pipeline.py --offline --now 2026-11-19T10:00:00+00:00
 node site/parity_test.js .cache/parity.json
 ```
 
-`ornek_espn.json`, 10 Kasım 2026'da ESPN'den alınmış gerçek bir örnektir: 20 ligin 20–30 Kasım fikstürü, takım adları ve
-DraftKings / Bet365 oranları (canlı skor yok). İskoçya League One / Two için sahte oranlı bir football-data fikstür dosyası yazılır.
+`ornek_espn.json`, 10 Kasım 2026'da ESPN'den alınmış gerçek bir örnektir: ESPN'in güncel tuttuğu liglerin, UEFA kupalarının ve
+kadın liglerinin 11–30 Kasım fikstürü, takım adları ve DraftKings / Bet365 oranları (canlı skor yok). İskoçya League One / Two için sahte oranlı bir football-data fikstür dosyası yazılır.
 İsteğe bağlı üçüncü argüman arşiv aynasının `Matches.csv` dosyasıdır; verilirse henüz sezon dosyası olmayan ligler için
 2026-27'nin ilk haftaları yer tutucu olarak kopyaya yazılır (yalnızca test kopyasında).
 

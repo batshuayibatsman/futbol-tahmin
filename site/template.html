@@ -523,8 +523,8 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     if (c.kickoff && c.state === 'pre' && marketGap(c) >= 0.10) chips.push(`<span class="chip warn">İstatistik farklı düşünüyor</span>`);
     const sc = (side) => live && lv.hs !== null && lv.hs !== undefined ? `<span class="score">${side === 'h' ? lv.hs : lv.as}</span>` : `<span class="tp">${pct(side === 'h' ? m['MS 1'] : m['MS 2'])}</span>`;
     return `<span class="mmeta"><span class="lft">${esc(lgLabel(c.L))}${c.kickoff ? ' · ' + statusHTML(c) : ''}</span>${openable ? '<span class="open"></span>' : ''}</span>
-      <span class="mteams"><span class="tn">${esc(c.home_name)}<small>${c.h.rank}.</small></span>${sc('h')}
-      <span class="tn">${esc(c.away_name)}<small>${c.a.rank}.</small></span>${sc('a')}</span>
+      <span class="mteams"><span class="tn">${esc(c.home_name)}${c.h.rank !== '–' ? `<small>${c.h.rank}.</small>` : ''}</span>${sc('h')}
+      <span class="tn">${esc(c.away_name)}${c.a.rank !== '–' ? `<small>${c.a.rank}.</small>` : ''}</span>${sc('a')}</span>
       <span>${bar(m)}</span>
       <span class="quick">${c.L.ht === false ? `<span class="q"><span>Gol MS</span><b>${num(d.exp_g)}</b></span>` : `<span class="q"><span>Gol İY · MS</span><b>${num(d.exp_g1)} · ${num(d.exp_g)}</b></span>`}
       <span class="q"><span>Korner İY · MS</span><b>${d.exp_c === null ? 'veri yok' : `${num(d.exp_c1)} · ${num(d.exp_c)}`}</b></span>
@@ -602,7 +602,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
       if (!show) { picks += `<div class="box mute"><span class="k">${lab}</span><span class="w">${typ === 'BANKO' ? `Bu maçta %${Math.round(META.rules.banko_min * 100)}–${Math.round(META.rules.banko_max * 100)} aralığında güvenilir bir sonuç yok.` : 'Bu maçta olağanın belirgin üstünde görünen bir sürpriz yok.'}</span></div>`; continue; }
       const base = c.L.base[show.k];
       let w = `Adil oran ${odd(show.p)}.`;
-      if (typ === 'SÜRPRİZ' && base) w = `Bu ligde olağan sıklığı ${pct(base)}; bu maçta ${num(show.p / base)} kat daha olası. ` + w;
+      if (typ === 'SÜRPRİZ' && base) w = `${c.L.odds_only ? '22 ligin ortalamasında' : 'Bu ligde'} olağan sıklığı ${pct(base)}; bu maçta ${num(show.p / base)} kat daha olası. ` + w;
       if (pk && pk.locked) w += ` Karneye maçtan önceki son güncellemedeki (${trShort(pk.at)}) seçim olarak yazıldı.`;
       else if (c.kickoff) w += c.state === 'pre' ? ` Geçici: maç başlayana kadar her güncellemede yeniden hesaplanır; maçtan önceki son güncellemedeki seçim karneye yazılır.` : ` Bu maç için karneye yazılmış bir seçim yok (maç başlamadan önce güncelleme yapılmamıştı).`;
       if (pk && pk.res) w += ` Sonuç: <b class="${pk.res === 'Tuttu' ? 'res-ok' : 'res-no'}">${esc(pk.res)}</b>.`;
@@ -618,6 +618,8 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
         const gap = marketGap(c);
         ctx += `<div class="box ${gap >= 0.10 ? 'fl' : 'mute'}"><span class="k">Tahminin dayanağı</span><span class="v">Gol beklentisi bahis oranlarından: ${esc(ob.kaynak_1x2)}${ob.kaynak_gol ? ', ' + esc(ob.kaynak_gol) : ''}. Tahmin: 1 ${pct(m['MS 1'])} · X ${pct(m['MS X'])} · 2 ${pct(m['MS 2'])} &nbsp;|&nbsp; Sadece istatistik: ${pct(sv.h)} · ${pct(sv.d)} · ${pct(sv.a)}</span>
           <span class="w">${gap >= 0.10 ? 'İstatistik ile oranlar arasında büyük fark var. Oranlar sakatlık, kadro ve motivasyon haberlerini de bilir; geçmiş testte oranlar daha isabetliydi.' : 'İstatistik ile oranlar aynı yöne bakıyor.'} Devre, İY/MS ve korner hesapları istatistik modelinden gelir.</span></div>`;
+      } else if (ob) {
+        ctx += `<div class="box mute"><span class="k">Tahminin dayanağı</span><span class="v">Gol beklentisi bahis oranlarından: ${esc(ob.kaynak_1x2)}${ob.kaynak_gol ? ', ' + esc(ob.kaynak_gol) : ' (toplam gol de 1X2 oranlarından)'}.</span><span class="w">Bu ${c.L.country === 'UEFA' ? 'turnuvada takımlar farklı liglerden geldiği' : 'lig için ücretsiz sonuç arşivi olmadığı'} için istatistik modeli yok; yalnızca oranı açıklanmış maçlar gösterilir ve yalnızca maç sonu pazarları hesaplanır.</span></div>`;
       } else if (c.state === 'pre') {
         ctx += `<div class="box mute"><span class="k">Tahminin dayanağı</span><span class="w">Bu maç için henüz oran yok: tahmin yalnızca istatistikten (son 4 yılın goller ve kornerleri). Oran gelince bir sonraki güncellemede oranlara göre yeniden hesaplanır.</span></div>`;
       }
@@ -629,11 +631,11 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     return `${stand}
       <h3>Beklenen sayılar</h3>${sb}
       <h3>Sonuç olasılıkları</h3><div class="scroll">${res}</div>
-      ${HT ? `<h3>İY/MS</h3><p class="note">Kırmızı çerçeveli hücreler dönüşler: 1/2 ve 2/1. Küçük sayı adil oran.</p>${g3}` : `<h3>İlk yarı ve İY/MS</h3><p class="note">Bu ligin ücretsiz resmî verisinde devre skoru yok; ilk yarı, İY/MS ve İY skoru tahmini yapılamıyor. Maç sonu tahminleri tam.</p>`}
+      ${HT ? `<h3>İY/MS</h3><p class="note">Kırmızı çerçeveli hücreler dönüşler: 1/2 ve 2/1. Küçük sayı adil oran.</p>${g3}` : `<h3>İlk yarı ve İY/MS</h3><p class="note">${c.L.odds_only ? 'Bu tahmin yalnızca bahis oranlarından yapılıyor; ilk yarı, İY/MS ve İY skoru için veri yok.' : 'Bu ligin ücretsiz resmî verisinde devre skoru yok; ilk yarı, İY/MS ve İY skoru tahmini yapılamıyor.'} Maç sonu tahminleri tam.</p>`}
       <h3>Maç sonu skor</h3>${scores(c.r.ft_top, 8)}
       ${HT ? `<h3>İlk yarı skoru</h3>${scores(c.r.ht_top, 6)}` : ''}
       <h3>Alt / üst</h3>${HT ? `<div class="cols"><div class="scroll">${goals}</div><div class="scroll">${goals1}</div></div>` : `<div class="scroll">${goals}</div>`}
-      <h3>Korner</h3>${d.exp_c === null ? '<p class="note">Bu ligin ücretsiz resmî verisinde korner sayısı yok; korner tahmini yapılamıyor.</p>' : `<div class="cols"><div class="scroll">${corn}</div><div class="scroll">${corn1}</div></div>`}
+      <h3>Korner</h3>${d.exp_c === null ? `<p class="note">${c.L.odds_only ? 'Bu tahmin yalnızca bahis oranlarından yapılıyor; korner için veri yok.' : 'Bu ligin ücretsiz resmî verisinde korner sayısı yok; korner tahmini yapılamıyor.'}</p>` : `<div class="cols"><div class="scroll">${corn}</div><div class="scroll">${corn1}</div></div>`}
       ${c.kickoff ? `<h3>Bahis oranları</h3>${oddsHTML(c)}` : ''}
       <h3>Banko ve sürpriz</h3>${picks}${ctx}
       <button class="btn" type="button" data-oran="${c.kickoff ? esc(c.fid) : 'c'}">Bu maçı oran hesabında aç</button>`;
@@ -682,7 +684,7 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
   // league options grouped by country, in the site's order
   function leagueOptions(withAll) {
     const groups = [];
-    for (const d of ORDER) { const c = LG[d].country || ''; let g = groups.find(x => x.c === c); if (!g) groups.push(g = { c, d: [] }); g.d.push(d); }
+    for (const d of ORDER) { if (!withAll && (LG[d].odds_only || !LG[d].teams.length)) continue; const c = LG[d].country || ''; let g = groups.find(x => x.c === c); if (!g) groups.push(g = { c, d: [] }); g.d.push(d); }
     return (withAll ? `<option value="all">Tüm ligler</option>` : '') + groups.map(g => `<optgroup label="${esc(g.c)}">${g.d.map(d => {
       const n = upcomingAll().filter(f => f.div === d).length;
       return `<option value="${d}">${esc(LG[d].short || LG[d].name)}${withAll ? ` (${n})` : ''}</option>`; }).join('')}</optgroup>`).join('');
@@ -902,7 +904,8 @@ select,input{font:16px/1.2 var(--body);padding:9px 10px;border:1px solid var(--l
     $('#d-audit').innerHTML = `<p>${thou(A.rows_in || 0)} satır okundu; ${thou(A.rows_out || 0)} maç tabloda, ${thou(A.fit_rows || 0)} tanesi modelde kullanılıyor (devre skoru olanlar; korner modeli korner sayısı da olanlarla kurulur). Hiçbir satır sessizce silinmez:</p>` +
       ((A.issues || []).length ? `<ul class="facts">${A.issues.map(i => `<li>${esc(i['tür'])}: ${thou(i.n)} satır, ${esc(i['işlem'])}${i['örnek'] && i['örnek'].length ? ` (ör. ${esc(i['örnek'].slice(0, 2).map(x => x.join(' ')).join('; '))})` : ''}</li>`).join('')}</ul>` : '<p>Sorunlu satır yok.</p>');
     const cal = META.cal, cfg = META.model;
-    $('#d-method').innerHTML = `<p><b>Oranlar:</b> maçın bahis oranları varsa (ESPN'deki DraftKings ya da Bet365, yoksa football-data.co.uk'taki Bet365 ve ortalama), marjları çıkarılır ve iki takımın gol beklentisi bu oranlardan türetilir: 1X2 oranları güç farkını, alt/üst oranı toplam golü verir. ${ORDER.length} ligde 2024–26 sezonlarının ${thou(BT.n || 0)} maçında bu, sadece istatistikten daha isabetli çıktı ve bütün liglerde aynı sonucu verdi. Oran yoksa gol beklentisi istatistik modelinden gelir. Oranlar değişince tahmin de bir sonraki güncellemede değişir.</p>
+    $('#d-method').innerHTML = `<p><b>UEFA kupaları ve kadın ligleri:</b> takımlar farklı liglerden geldiği ya da ücretsiz sonuç arşivi olmadığı için istatistik modeli yok; yalnızca bahis oranı açıklanmış maçlar gösterilir ve yalnızca maç sonu pazarları oranlardan hesaplanır. Sonuçlar ESPN'den işlenir.</p>
+      <p><b>Oranlar:</b> maçın bahis oranları varsa (ESPN'deki DraftKings ya da Bet365, yoksa football-data.co.uk'taki Bet365 ve ortalama), marjları çıkarılır ve iki takımın gol beklentisi bu oranlardan türetilir: 1X2 oranları güç farkını, alt/üst oranı toplam golü verir. ${ORDER.length} ligde 2024–26 sezonlarının ${thou(BT.n || 0)} maçında bu, sadece istatistikten daha isabetli çıktı ve bütün liglerde aynı sonucu verdi. Oran yoksa gol beklentisi istatistik modelinden gelir. Oranlar değişince tahmin de bir sonraki güncellemede değişir.</p>
       <p><b>İstatistik:</b> her takımın hücum ve savunma gücü son 4 yılın lig maçlarından hesaplanır; yeni maçlar daha ağır basar (gollerde yarı ömür ${Math.round(cfg.hl_goals / 30.4)} ay, kornerlerde ${Math.round(cfg.hl_corners / 30.4)} ay). Güçler ortalamaya doğru hafifçe çekilir, böylece birkaç maçlık seri tahminleri savurmaz. Lige yeni çıkan takımlar, 2010–2020 arasında yükselen 175 takımın ortalamasıyla başlar.</p>
       <p>Goller her yarı için ayrı Poisson dağılımıyla hesaplanır; ikinci yarının temposu devre skoruna bağlıdır. İY/MS tablosu, gerçek maçlarda modelin öngördüğünden sık görülen dönüşlere göre düzeltildi. Kornerler negatif binom dağılımıyla, lig ortalamasına doğru çekilerek hesaplanır; ilk yarı kornerleri toplamın %${Math.round(cal.c1_share * 100)}'si kabul edilir.</p>
       <p>Devre skoru, ikinci yarı, İY/MS ve korner hesapları her durumda istatistik modelinden gelir (ücretsiz veride bunların oranı yok). Banko ve sürpriz seçimleri sabit kurallarla yapılır ve maç başlayana kadar her güncellemede yeniden hesaplanır. Karneye, maç başlamadan önceki son güncellemede sitede görünen seçim yazılır; maç başladıktan sonra seçim değişmez ve kayıttan hiçbir satır silinmez. Tahmin formülleri kilitlidir: değişirse güncelleme durur.</p>

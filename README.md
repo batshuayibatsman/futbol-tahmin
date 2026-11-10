@@ -1,6 +1,6 @@
 # Futbol Tahmin Bülteni
 
-38 lig için **istediğinde tek dokunuşla güncellenen** tahmin sitesi:
+38 lig, UEFA kupaları ve kadın ligleri için **istediğinde tek dokunuşla güncellenen** tahmin sitesi:
 **https://batshuayibatsman.github.io/futbol-tahmin/**
 
 Türkiye Süper Lig · İngiltere Premier Lig, Championship, League One, League Two, National League · İskoçya Premiership,
@@ -9,6 +9,13 @@ La Liga 2 · Fransa Ligue 1, Ligue 2 · Hollanda Eredivisie · Belçika Pro Leag
 
 Yalnızca maç sonu verisi olan 16 lig (ilk yarı, İY/MS ve korner tahmini yok): ABD MLS · Arjantin · Avusturya · Brezilya ·
 Çin · Danimarka · Finlandiya · İrlanda · İsveç · İsviçre · Japonya · Meksika · Norveç · Polonya · Romanya · Rusya.
+
+Yalnızca bahis oranlarından tahmin (istatistik modeli yok, yalnızca oranı açıklanmış maçlar, yalnızca maç sonu pazarları):
+UEFA Şampiyonlar Ligi, Avrupa Ligi, Konferans Ligi · Kadınlar: UEFA Şampiyonlar Ligi, İngiltere WSL, İspanya Liga F,
+Fransa Première Ligue, ABD NWSL. Bu maçların sonuçları ESPN'den işlenir (uzatma/penaltıya giden maçlar doğrulanamaz sayılır).
+
+İngiltere'de 5. seviyenin (National League) altındaki ligler (National League North/South vb.) için ücretsiz bir kaynak yok:
+ne football-data.co.uk'ta ne ESPN'de bulunuyorlar.
 
 Zamanlanmış çalıştırma yoktur. Güncelleme yalnızca sen istediğinde çalışır: GitHub veriyi kendisi çeker, modeli yeniden kurar,
 tahminleri hesaplar ve siteyi yayınlar. Hiçbir şey yapıştırman gerekmez.
@@ -76,8 +83,9 @@ Her maç yalnızca kendinden önce oynanmış maçlarla ve o maçın maç önces
 - Bankolar: model ortalama %80,0 dedi, %81,2 tuttu. Sürprizler: model %17,4 dedi, %17,5 tuttu (olağan sıklık %11,7).
 - Oranları hiç kullanmayan eski yöntemle bankolar %79,8 tutuyordu; maç sonucu log-kaybı 1,020 → 1,000 (Bet365'in kendisi 1,001).
 - Oranlardan türetilen gol beklentisi 22 ligin hepsinde sadece istatistikten daha isabetliydi (`research/v2/blend.py`).
-- Ek 16 lig (yalnızca maç sonu verisi, 2024 sezonu, 3.076 maç): bankolar %80,9 dedi, %80,1 tuttu; sürprizler %33,7 dedi, %33,7 tuttu.
-  Bu liglerde de oranlar 16 ligin hepsinde istatistikten isabetliydi (`research/v2/extra.py`).
+- Ek 16 lig (yalnızca maç sonu verisi, 2024 sezonu, 3.076 maç): bankolar %80,8 dedi, %80,7 tuttu; sürprizler %34,8 dedi, %36,0 tuttu.
+  Oranlar 16 ligin 14'ünde istatistikten isabetliydi, Polonya ve Rusya'da fark yoktu (`research/v2/extra.py`).
+  Toplam gol oranı olmayan maçlarda toplam gol 1X2 oranlarından (beraberlik fiyatından) çıkarılır (`research/v2/draw_total.py`).
 - Hiçbir seçim kuralı bahis oranlarına karşı güvenilir bir kâr göstermedi.
 
 ## Bilinen sınırlar

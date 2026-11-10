@@ -105,8 +105,9 @@ class PickLog:
         return {i.rsplit('|', 1)[0] for i in self.picks.id} if not self.picks.empty else set()
 
     # ------------------------------------------------------------------ settle
-    def settle(self, D, now):
-        """Settle locked picks whose match is in the football-data results."""
+    def settle(self, D, now, espn_res=None):
+        """Settle recorded picks from the football-data results; competitions without football-data (odds only) from ESPN
+        (espn_res: {fixture id: (home goals, away goals) or None when the 90-minute score is not known})."""
         if self.picks.empty:
             return []
         done = set(self.res.id) if not self.res.empty else set()
@@ -116,6 +117,18 @@ class PickLog:
         rows = []
         for p in self.picks.to_dict('records'):
             if p['id'] in done:
+                continue
+            fid = p['id'].rsplit('|', 1)[0]
+            if espn_res is not None and fid in espn_res:
+                sc = espn_res[fid]
+                if sc is None:
+                    durum, hg, ag = 'Doğrulanamadı', '', ''
+                else:
+                    hg, ag = sc
+                    o = market_outcomes(hg, ag, None, None, None, None); o['Sürpriz MS 1'] = o['MS 1']; o['Sürpriz MS 2'] = o['MS 2']
+                    durum = ('Tuttu' if o[p['pazar']] else 'Tutmadı') if p['pazar'] in o else 'Doğrulanamadı'
+                rows.append({'id': p['id'], 'sonuc_utc': now.isoformat(timespec='seconds'), 'hg': hg, 'ag': ag, 'hthg': '', 'htag': '', 'hc': '', 'ac': '', 'durum': durum})
+                done.add(p['id'])
                 continue
             ko = pd.Timestamp(p['baslama_utc']).tz_convert(None).normalize()
             cand = [r for r in idx.get((p['div'], p['ev'], p['deplasman']), []) if abs((r.date - ko).days) <= 2]

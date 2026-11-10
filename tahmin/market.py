@@ -2,7 +2,10 @@
 
 The margin is removed proportionally. The total-goals line gives the expected total T (P(goals > line) under a Poisson
 total) and P(home) - P(away) gives the home share r (independent Poisson goals with means T*r and T*(1-r)).
-Without a total-goals price the statistics model's total is kept and only the share comes from the 1X2 odds.
+Without a total-goals price T comes from the 1X2 odds as well: P(draw) and P(home) - P(away) fix T and r together;
+independent Poisson gives too few draws, so T is scaled by DRAW_TOTAL_SCALE (chosen on 2021-23 against the 2.5-goal
+prices; it was closer to the market total than the statistics model and better on the 16 full-time-only leagues,
+research/v2/draw_total.py).
 The result is blended with the statistics model with config.ODDS_BLEND (research/v2/blend.py: weight 1 = odds only
 was the most accurate on 2021-23 and on the untouched 2024-26 seasons).
 Identical to research/v2/blend.py (vectorised there)."""
@@ -15,6 +18,7 @@ ORDER_1X2 = [('dk', 'DraftKings (ESPN)'), ('b365e', 'Bet365 (ESPN)'), ('b365', '
              ('pin', 'Pinnacle'), ('max', 'en iyi oranlar')]
 ORDER_TOTAL = [('dk', 'DraftKings (ESPN)'), ('b365', 'Bet365'), ('avg', 'piyasa ortalaması'), ('pin', 'Pinnacle'), ('max', 'en iyi oranlar')]
 ITER = 60
+DRAW_TOTAL_SCALE = 1.1111
 
 
 def _ok(x):
@@ -57,8 +61,35 @@ def _hda(lh, la):
     return float(np.tril(M, -1).sum()), float(np.trace(M)), float(np.triu(M, 1).sum())
 
 
-def implied_means(o1, ox, o2, over=None, under=None, line=2.5, total_fallback=None):
-    """Goal means (home, away) implied by the odds; total_fallback is used when there is no total-goals price."""
+def _split(T, target, it=ITER):
+    lo, hi = 0.01, 0.99
+    for _ in range(it):
+        mid = (lo + hi) / 2
+        a, _, c = _hda(T * mid, T * (1 - mid))
+        if (a - c) - target < 0:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def total_from_1x2(p1, px, p2, it=40):
+    """Expected total goals from margin-free 1X2 probabilities (draw probability falls as the total rises)."""
+    target = p1 - p2
+    lo, hi = 0.6, 7.0
+    for _ in range(it):
+        T = (lo + hi) / 2
+        r = _split(T, target, it)
+        _, d, _ = _hda(T * r, T * (1 - r))
+        if d > px:
+            lo = T
+        else:
+            hi = T
+    return DRAW_TOTAL_SCALE * (lo + hi) / 2
+
+
+def implied_means(o1, ox, o2, over=None, under=None, line=2.5):
+    """Goal means (home, away) implied by the odds."""
     q = np.array([1 / o1, 1 / ox, 1 / o2]); p = q / q.sum()
     target = float(p[0] - p[2])
     if over and under:
@@ -72,16 +103,8 @@ def implied_means(o1, ox, o2, over=None, under=None, line=2.5, total_fallback=No
                 hi = mid
         T = (lo + hi) / 2
     else:
-        T = float(total_fallback)
-    lo, hi = 0.01, 0.99
-    for _ in range(ITER):
-        mid = (lo + hi) / 2
-        a, _, c = _hda(T * mid, T * (1 - mid))
-        if (a - c) - target < 0:
-            lo = mid
-        else:
-            hi = mid
-    r = (lo + hi) / 2
+        T = total_from_1x2(float(p[0]), float(p[1]), float(p[2]))
+    r = _split(T, target)
     return T * r, T * (1 - r)
 
 
@@ -92,12 +115,13 @@ def blend(lh, la, mh, ma, wr, wt):
 
 
 def odds_means(lh, la, odds, w):
-    """(final home mean, final away mean, info). info is None when the match has no usable odds."""
+    """(final home mean, final away mean, info). info is None when the match has no usable odds.
+    lh/la None: competition without a statistics model (odds only)."""
     c = choose(odds)
     if c is None:
         return lh, la, None
-    mh, ma = implied_means(c['1'], c['X'], c['2'], c.get('over'), c.get('under'), c.get('line', 2.5), lh + la)
-    fh, fa = blend(lh, la, mh, ma, w['wr'], w['wt'])
+    mh, ma = implied_means(c['1'], c['X'], c['2'], c.get('over'), c.get('under'), c.get('line', 2.5))
+    fh, fa = (mh, ma) if lh is None else blend(lh, la, mh, ma, w['wr'], w['wt'])
     info = {'kaynak_1x2': c['src'], 'kaynak_gol': (f"{c['src_total']} {c['line']:g} gol" if c.get('src_total') else None),
             'oran': {k: c[k] for k in ('1', 'X', '2')}, 'mh': mh, 'ma': ma}
     if c.get('src_total'):

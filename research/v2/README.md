@@ -18,8 +18,11 @@ Sırayla çalıştırılır (arşiv aynası: github.com/xgabora/Club-Football-Ma
 | Sürpriz: model dedi / tuttu (olağan) | %17,4 / %17,5 (%11,7) | %18,3 / %18,1 (%12,4) |
 
 ## Ek 16 lig (yalnızca maç sonu skoru ve 1X2 oranı)
-6. `extra.py <Matches.csv>` – ABD, Arjantin, Avusturya, Brezilya, Çin, Danimarka, Finlandiya, İrlanda, İsveç, İsviçre, Japonya,
-   Meksika, Norveç, Polonya, Romanya, Rusya: devre skoru olmadan walk-forward takım güçleri (ilk yarı payı 22 ligin ortalaması %44,6),
-   oranlardan güç farkı (toplam gol istatistikten). 2021-23'te en iyi ağırlık 0,90 (1,00 ile fark 0,0002; tek kural için 1 kullanılıyor);
-   2024'te 16 ligin hepsinde istatistikten isabetli (maç sonucu log-kaybı 1,043 → 1,016).
-7. `extra_eval.py` – lig sıklıkları (2021-23) ve 2024 testi: bankolar %80,9 dedi / %80,1 tuttu, sürprizler %33,7 / %33,7 (olağan %23,5).
+6. `draw_total.py` – toplam gol oranı olmayan maçlarda toplam golü 1X2 oranlarından çıkarma: beraberlik olasılığı ve P(1)-P(2)
+   birlikte toplamı ve payı verir; bağımsız Poisson beraberliği az verdiği için ölçek 1,1111 (2021-23'te 2,5 gol oranına göre).
+   2,5 gol oranından çıkan toplama uzaklık: bu yöntem 0,083, istatistik modelinin toplamı 0,190.
+7. `extra.py <Matches.csv>` (ya da `--reuse`) – ABD, Arjantin, Avusturya, Brezilya, Çin, Danimarka, Finlandiya, İrlanda, İsveç, İsviçre,
+   Japonya, Meksika, Norveç, Polonya, Romanya, Rusya: devre skoru olmadan walk-forward takım güçleri (ilk yarı payı 22 ligin ortalaması
+   %44,6). 2021-23'te en iyi ağırlık (güç farkı ve toplam) 1: yalnızca oranlar. 2024'te maç sonucu log-kaybı 1,043 → 1,014;
+   16 ligin 14'ünde isabetli, Polonya ve Rusya'da fark yok.
+8. `extra_eval.py` – lig sıklıkları (2021-23) ve 2024 testi: bankolar %80,8 dedi / %80,7 tuttu, sürprizler %34,8 / %36,0 (olağan %23,9).

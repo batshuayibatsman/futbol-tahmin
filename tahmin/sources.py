@@ -51,6 +51,16 @@ LEAGUES = {
     'POL': {'name': 'Polonya Ekstraklasa', 'short': 'Ekstraklasa', 'country': 'Polonya', 'espn': None, 'odds': 'soccer_poland_ekstraklasa', 'new': True, 'fd': 'Poland'},
     'ROU': {'name': 'Romanya Superliga', 'short': 'Superliga', 'country': 'Romanya', 'espn': None, 'odds': None, 'new': True, 'fd': 'Romania'},
     'RUS': {'name': 'Rusya Premier Ligi', 'short': 'Premier Lig', 'country': 'Rusya', 'espn': 'rus.1', 'odds': None, 'new': True, 'fd': 'Russia'},
+    # competitions without a statistics model (clubs from many leagues, or no free results archive): odds only, ESPN only.
+    # base: whose league frequencies the SÜRPRİZ rule compares with ('MAIN' = 22-league average; none = no SÜRPRİZ)
+    'UCL': {'name': 'Şampiyonlar Ligi', 'short': 'Şampiyonlar Ligi', 'country': 'UEFA', 'espn': 'uefa.champions', 'odds': 'soccer_uefa_champs_league', 'odds_only': True, 'base': 'MAIN'},
+    'UEL': {'name': 'Avrupa Ligi', 'short': 'Avrupa Ligi', 'country': 'UEFA', 'espn': 'uefa.europa', 'odds': 'soccer_uefa_europa_league', 'odds_only': True, 'base': 'MAIN'},
+    'UECL': {'name': 'Konferans Ligi', 'short': 'Konferans Ligi', 'country': 'UEFA', 'espn': 'uefa.europa.conf', 'odds': 'soccer_uefa_europa_conference_league', 'odds_only': True, 'base': 'MAIN'},
+    'UWCL': {'name': 'Kadınlar Şampiyonlar Ligi', 'short': 'UEFA Şampiyonlar Ligi', 'country': 'Kadınlar', 'espn': 'uefa.wchampions', 'odds': None, 'odds_only': True},
+    'WSL': {'name': 'İngiltere Kadınlar Süper Ligi', 'short': 'İngiltere WSL', 'country': 'Kadınlar', 'espn': 'eng.w.1', 'odds': None, 'odds_only': True},
+    'LIGAF': {'name': 'İspanya Kadınlar Liga F', 'short': 'İspanya Liga F', 'country': 'Kadınlar', 'espn': 'esp.w.1', 'odds': None, 'odds_only': True},
+    'D1F': {'name': 'Fransa Kadınlar Première Ligue', 'short': 'Fransa Première Ligue', 'country': 'Kadınlar', 'espn': 'fra.w.1', 'odds': None, 'odds_only': True},
+    'NWSL': {'name': 'ABD Kadınlar NWSL', 'short': 'ABD NWSL', 'country': 'Kadınlar', 'espn': 'usa.nwsl', 'odds': None, 'odds_only': True},
 }
 FD_SEASON = 'https://www.football-data.co.uk/mmz4281/{code}/{div}.csv'
 FD_FIXTURES = 'https://www.football-data.co.uk/fixtures.csv'
@@ -61,8 +71,8 @@ ESPN_PLAIN = 'https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/scoreb
 ODDS_API = 'https://api.the-odds-api.com/v4/sports/{sport}/odds/?apiKey={key}&regions=eu&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso'
 # Updates run only on request and with --force every source is re-checked, so one run must fit a full refresh:
 # football-data up to 71 files (22 leagues, two seasons in Jul-Sep, 16 full-time-only files, 2 fixture files, backfill),
-# ESPN 31 scoreboards + every match date in 16 days.
-PER_RUN_CAP = {'football-data.co.uk': 90, 'site.api.espn.com': 500, 'api.the-odds-api.com': 6}
+# ESPN 39 scoreboards + every match date in 16 days (22 days back and forth for the odds-only competitions).
+PER_RUN_CAP = {'football-data.co.uk': 90, 'site.api.espn.com': 800, 'api.the-odds-api.com': 6}
 # season files missing from the archive mirror (whole or partial seasons inside the 4-year window): fetched once,
 # kept in data/seasons/<code>/ and committed, never downloaded again
 BACKFILL = {'2223': ['G1'], '2324': ['G1'], '2425': ['G1', 'EC', 'SC0', 'SC1', 'SC2', 'SC3', 'T1']}

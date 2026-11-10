@@ -11,7 +11,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 import numpy as np, pandas as pd
-from config import CFG, TARGET, ODDS_BLEND, EXTRA
+from config import CFG, TARGET, ODDS_BLEND, EXTRA, ODDS_ONLY
 from model import LeagueFitter, predict_means, match_distribution, summarize, apply_htft_cal
 from probs import predict_all
 from markets import (market_probs, pick_banko, pick_surprise, BANKO_MENU, BANKO_MIN, BANKO_MAX,
@@ -164,6 +164,7 @@ def main():
     iv = ESPN_HOT_MIN if hot else ESPN_COLD_MIN
     et_today = now.astimezone(_Z('America/New_York')).date()
     lo, hi = (et_today - dt.timedelta(days=1)).strftime('%Y%m%d'), (et_today + dt.timedelta(days=AHEAD_DAYS)).strftime('%Y%m%d')
+    lo7 = (et_today - dt.timedelta(days=7)).strftime('%Y%m%d')
     near = {(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (-1, 0)}
     soon = {(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in (1, 2, 3)}
     espn, espn_ok, cors = {}, {}, state.get('espn_cors')
@@ -179,7 +180,10 @@ def main():
         espn_cal = S.espn_calendar(b) if b else None
         if b:
             diag.append(f'{div} varsayılan: {S.espn_summary(b)}')
-        want = [d for d in (espn_cal or []) if lo <= d <= hi]
+        lo_d = lo7 if div in ODDS_ONLY else lo
+        want = [d for d in (espn_cal or []) if lo_d <= d <= hi]
+        if div in ODDS_ONLY and len(espn_cal or []) <= 3:      # cups: one calendar entry for the whole season -> every day
+            want = [(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in range(-7, AHEAD_DAYS + 1)]
         if espn_cal is None:
             want = [(et_today + dt.timedelta(days=k)).strftime('%Y%m%d') for k in range(-1, 8)]
             diag.append(f'{div}: takvim yok, 9 gün tek tek')
@@ -231,7 +235,7 @@ def main():
     oddsapi = {}
     if key and not a.offline:
         remaining = oa.get('remaining')
-        for div in [d for d in TARGET if S.LEAGUES[d].get('odds')]:
+        for div in [d for d in TARGET if S.LEAGUES[d].get('odds') and d not in ODDS_ONLY]:
             soon = [e for e in espn[div] if e['state'] == 'pre' and e['kickoff'] and 0 < (dt.datetime.fromisoformat(e['kickoff']) - now).total_seconds() / 3600 <= ODDS_AHEAD_H]
             soon += [f for f in fd_fix if f['div'] == div and 0 < (dt.datetime.fromisoformat(f['kickoff']) - now).total_seconds() / 3600 <= ODDS_AHEAD_H]
             last = oa.setdefault('last', {}).get(div, 0)
@@ -257,6 +261,18 @@ def main():
     leagues, fixtures, unmapped, espn_map, parity = {}, [], {}, {}, []
     hot_next = False
     fnum = lambda x: None if x is None or x != x else float(x)
+
+    def make_inputs(fit, h, aw, odds, oo):
+        """Model inputs of one match: goal means from the odds (blended with the statistics model where there is one)."""
+        if oo:
+            fh, fa, oinfo = odds_means(None, None, odds, ODDS_BLEND)
+            if oinfo is None:
+                return None, None
+            return dict(lh=float(fh), la=float(fa), ch=None, ca=None, c_avg=None, s1h=float(fit['s1_h']), s1a=float(fit['s1_a']), ht=False), oinfo
+        lh, la, ch, ca = predict_means(fit, h, aw)
+        fh, fa, oinfo = odds_means(float(lh), float(la), odds, ODDS_BLEND)
+        return dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
+                    lh_model=float(lh), la_model=float(la), ht=bool(fit['has_ht'])), oinfo
     for div in TARGET:
         df = D[D['div'] == div]
         # season label: July-June, except the full-time-only leagues whose files carry their own (e.g. calendar years)
@@ -269,7 +285,11 @@ def main():
                 nm = [n for n in e[side]['names'] if n]
                 if nm and not str(nm[0]).upper().startswith('TBD'):         # play-off placeholders
                     ext.setdefault(e[side]['id'], nm)
-        mp, un, _ = build_map(div, ext, canon)
+        oo = div in ODDS_ONLY
+        if oo:                     # no football-data archive: ESPN's names are the ids
+            mp, un = {eid: nm[0] for eid, nm in ext.items()}, []
+        else:
+            mp, un, _ = build_map(div, ext, canon)
         espn_map[div] = mp
         if un:
             unmapped[div] = [ext[u][0] for u in un]
@@ -308,11 +328,15 @@ def main():
             if k in fx:
                 fx[k]['oa'] = e
         ex_teams = {t for k in fx for t in k[:2]}
-        fitter = LeagueFitter(df, CFG)
-        fit = fitter.fit(cutoff, SEASON_L, extra_teams=sorted(ex_teams))
+        if oo:
+            s1d = CFG.get('s1_default', (0.446, 0.446))
+            fit = {'mu': None, 'gamma': None, 'cmu': None, 'cgamma': None, 'c_avg': None, 's1_h': s1d[0], 's1_a': s1d[1], 'has_ht': False}
+        else:
+            fitter = LeagueFitter(df, CFG)
+            fit = fitter.fit(cutoff, SEASON_L, extra_teams=sorted(ex_teams))
         has_c = fit['cmu'] is not None
         C = df[(df.season == SEASON_L) & df.fit_ok]
-        teams = sorted(set(C.home) | set(C.away) | ex_teams)
+        teams = [] if oo else sorted(set(C.home) | set(C.away) | ex_teams)
         tab = []
         for t in teams:
             hh = C[C.home == t]; aa = C[C.away == t]
@@ -322,16 +346,16 @@ def main():
         rank = {r['team']: i + 1 for i, r in enumerate(tab)}
         last_match = str(C.date.max().date()) if len(C) else None
         LG = S.LEAGUES[div]
-        leagues[div] = dict(name=names[div], short=LG['short'], country=LG['country'], corners=has_c, ht=bool(fit['has_ht']),
-                            mu=float(fit['mu']), gamma=float(fit['gamma']), cmu=fnum(fit['cmu']), cgamma=fnum(fit['cgamma']),
+        leagues[div] = dict(name=names[div], short=LG['short'], country=LG['country'], corners=has_c, ht=bool(fit['has_ht']), odds_only=oo,
+                            mu=fnum(fit['mu']), gamma=fnum(fit['gamma']), cmu=fnum(fit['cmu']), cgamma=fnum(fit['cgamma']),
                             c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']), played=int(len(C)), last_match=last_match,
-                            round=f'{int(round(2 * len(C) / max(len(teams), 1))) + 1}. hafta' if len(C) else '1. hafta',
-                            base=base_all.get(div, {}), table=tab,
+                            round=('yalnızca oranı açıklanan maçlar' if oo else (f'{int(round(2 * len(C) / max(len(teams), 1))) + 1}. hafta' if len(C) else '1. hafta')),
+                            base=base_all.get(LG.get('base', div), {}) if (not oo or LG.get('base')) else {}, table=tab,
                             teams=[dict(id=t, name=disp(t), rank=rank[t], new=bool(fit['new'][fit['idx'][t]]),
                                         att=float(fit['att'][fit['idx'][t]]), de=float(fit['de'][fit['idx'][t]]),
                                         catt=fnum(fit['catt'][fit['idx'][t]]) if has_c else None,
                                         cde=fnum(fit['cde'][fit['idx'][t]]) if has_c else None) for t in teams])
-        in_season = bool(fx) if div in EXTRA else (today.month >= 8 or today.month <= 5)
+        in_season = False if oo else (bool(fx) if div in EXTRA else (today.month >= 8 or today.month <= 5))
         if in_season and last_match and (today - dt.date.fromisoformat(last_match)).days > 16:
             alert('UYARI', names[div], f'football-data sonuçları bayat olabilir: son maç {last_match}')
         H = df[df.fit_ok]
@@ -373,11 +397,10 @@ def main():
             f['odds'] = odds or None
             in_pre = fid in pre
             if f['state'] == 'pre' and ko > now:
-                lh, la, ch, ca = predict_means(fit, h, aw)
-                fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
-                inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
-                              lh_model=float(lh), la_model=float(la), ht=bool(fit['has_ht']))
-                facts = match_facts(C, H, h, aw, disp(h), disp(aw), cutoff)
+                inputs, oinfo = make_inputs(fit, h, aw, f['odds'], oo)
+                if inputs is None:
+                    continue                      # odds-only competition, no price yet
+                facts = [] if oo else match_facts(C, H, h, aw, disp(h), disp(aw), cutoff)
                 basis = 'güncel'
             elif in_pre:
                 inputs, facts = pre[fid]['inputs'], pre[fid].get('facts', [])
@@ -385,10 +408,9 @@ def main():
                 f['odds_last'] = pre[fid].get('odds_last')
                 basis = 'maç öncesi'
             else:
-                lh, la, ch, ca = predict_means(fit, h, aw)
-                fh, fa, oinfo = odds_means(float(lh), float(la), f['odds'], ODDS_BLEND)
-                inputs = dict(lh=float(fh), la=float(fa), ch=fnum(ch), ca=fnum(ca), c_avg=fnum(fit['c_avg']), s1h=float(fit['s1_h']), s1a=float(fit['s1_a']),
-                              lh_model=float(lh), la_model=float(la), ht=bool(fit['has_ht']))
+                inputs, oinfo = make_inputs(fit, h, aw, f['odds'], oo)
+                if inputs is None:
+                    continue
                 facts = []
                 basis = 'maç başladıktan sonra hesaplandı'
             f['pred_basis'] = basis
@@ -416,7 +438,30 @@ def main():
 
     # ------------------------------------------------------------ 7. picks: record the last pre-match pick, settle, performance
     recorded = log.finalize(pre, fixtures, now, names)
-    settled = log.settle(D, now)
+    # results of the odds-only competitions come from ESPN (football-data has none); kept in state/espn_sonuclar.csv.
+    # Only matches decided in 90 minutes are used; extra time / penalties cannot be split from ESPN's score.
+    er_path = STATE / 'espn_sonuclar.csv'
+    ER_COLS = ['id', 'div', 'hg', 'ag', 'durum', 'kayit_utc']
+    er = pd.read_csv(er_path, dtype={'id': str}) if er_path.exists() else pd.DataFrame(columns=ER_COLS)
+    have_er = set(er.id)
+    new_er = []
+    for div in [d for d in TARGET if d in ODDS_ONLY]:
+        for e in espn[div]:
+            if not e.get('completed') or e.get('hs') is None or e.get('as') is None or not e.get('kickoff'):
+                continue
+            h, a_ = (e['home']['names'] or [None])[0], (e['away']['names'] or [None])[0]
+            fid = f"{SEASON}|{div}|{h}|{a_}|{dt.datetime.fromisoformat(e['kickoff']).astimezone(UTC):%Y-%m-%d}"
+            if fid in have_er:
+                continue
+            stn = (e.get('status_name') or '').upper()
+            new_er.append({'id': fid, 'div': div, 'hg': int(e['hs']), 'ag': int(e['as']),
+                           'durum': 'tam' if stn in ('STATUS_FULL_TIME', 'STATUS_FINAL') else stn, 'kayit_utc': now.isoformat(timespec='seconds')})
+            have_er.add(fid)
+    if new_er:
+        pd.concat([er, pd.DataFrame(new_er, columns=ER_COLS)], ignore_index=True).to_csv(er_path, index=False)
+        er = pd.read_csv(er_path, dtype={'id': str})
+    espn_res = {r.id: ((int(r.hg), int(r.ag)) if r.durum == 'tam' else None) for r in er.itertuples()}
+    settled = log.settle(D, now, espn_res)
     perf, T = log.performance(now)
     done = log.recorded_fids()
     for f in fixtures:
